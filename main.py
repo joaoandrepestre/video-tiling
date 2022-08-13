@@ -22,7 +22,7 @@ def main():
         tiles.update_frame()
         key = cv2.waitKey(1) & 0xFF
         section = midi.get_midi_input()
-        if key == ord('q'):
+        if key == ord('q') or key == ord('Q'):
             break
         if section is not None:
             tiles.switch_section(section)
