@@ -1,5 +1,6 @@
 from os import listdir
 import cv2
+from midi import Midi
 from settigns import ENV
 from tile import Tiles
 
@@ -16,15 +17,18 @@ def main():
         files[i] = srcs_dir + '/' + file
 
     tiles = Tiles(files)
+    midi = Midi()
     while True:
         tiles.update_frame()
         key = cv2.waitKey(1) & 0xFF
+        section = midi.get_midi_input()
         if key == ord('q'):
             break
-        if key == ord('s'):
-            tiles.switch_section(5)
+        if section is not None:
+            tiles.switch_section(section)
 
     cv2.destroyAllWindows()
+    midi.destroy()
 
 
 if __name__ == '__main__':
