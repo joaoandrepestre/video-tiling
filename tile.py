@@ -3,11 +3,12 @@ import numpy as np
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
 from landscape import Landscape
+from settigns import ENV
 
 
 class Tiles:
 
-    AR = (360, 360)
+    AR = ENV['ASPECT_RATIO']
     IMG_NOT_FOUND = cv2.resize(
         cv2.imread('./statics/not-found.jpg'),
         AR
