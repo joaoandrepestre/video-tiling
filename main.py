@@ -3,6 +3,7 @@ import cv2
 from midi import Midi
 from settigns import ENV
 from tile import Tiles
+from gui import setup_gui, draw_gui, destroy_gui
 
 
 def main():
@@ -32,4 +33,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    setup_gui()
+    draw_gui()
+    destroy_gui()
