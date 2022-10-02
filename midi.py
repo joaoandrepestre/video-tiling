@@ -1,27 +1,41 @@
+import rtmidi
 from rtmidi.midiutil import open_midiinput
 from rtmidi.midiconstants import NOTE_OFF
+from config import MIDI_CONFIG, get_config
 from settigns import ENV
 
 
 class Midi:
-    NOTE_TO_SECTION: dict = ENV['NOTE_TO_SECTION']
-
     def __init__(self) -> None:
         portnum = ENV['MIDI_PORT']
-        self.midiin, portname = open_midiinput(portnum)
+        try:
+            self.midiin, _ = open_midiinput(portnum)
+        except rtmidi.NoDevicesError:
+            self.midiin = None
 
-    def get_midi_input(self) -> int:
+    def get_midi_note(self) -> str:
         if self.midiin is None:
             return None
-
         msg = self.midiin.get_message()
         if msg is None:
             return None
         [status, note, velocity] = msg[0]
         if status == NOTE_OFF:
             return None
-        return Midi.NOTE_TO_SECTION.get(note)
+        return f'{note}'
+
+    def get_midi_input(self) -> int:
+        if self.midiin is None:
+            return None
+
+        note = self.get_midi_note()
+        midi_map: list = get_config(MIDI_CONFIG)
+        try:
+            return midi_map.index(f'{note}')
+        except ValueError:
+            return None
 
     def destroy(self):
-        self.midiin.close_port()
+        if self.midiin is not None:
+            self.midiin.close_port()
         del self.midiin

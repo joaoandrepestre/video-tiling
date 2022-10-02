@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
-from config import PATH_CONFIG, get_config
+from config import KEYBOARD_CONFIG, PATH_CONFIG, get_config
 from landscape import Landscape
 from midi import Midi
 from settigns import ENV
@@ -26,6 +26,7 @@ class Tiles:
             Landscape(paths[int(i*6):int(6*(i+1))]) for i in range(landscape_num)]
         self.videos: list[CamGear] = [
             self.landscapes[0].start_section(i) for i in range(6)]
+        cv2.namedWindow('Tyler')
 
     def update_frame(self) -> None:
         imgs = []
@@ -44,7 +45,7 @@ class Tiles:
         l1 = np.hstack(tuple(imgs[3:]))
         out = np.vstack((l0, l1))
 
-        cv2.imshow('Tiles', out)
+        cv2.imshow('Tyler', out)
 
     def restart_section(self, section_index: int) -> None:
         landscape_index = self.landscape_for_section[section_index]
@@ -62,7 +63,20 @@ class Tiles:
         self.landscape_for_section[section_index] = landscape_index
 
 
-def render():
+def get_keyboard_input():
+    key = cv2.waitKey(1)
+    if key == -1:
+        return None
+    if key == 27:
+        return -1
+    key_map: list = get_config(KEYBOARD_CONFIG)
+    try:
+        return key_map.index(chr(key).upper())
+    except ValueError:
+        return None
+
+
+def render(midi: Midi):
     num = ENV['LANDSCAPE_NUM']
     srcs_dir = get_config(PATH_CONFIG)
 
@@ -74,15 +88,15 @@ def render():
         files[i] = srcs_dir + '/' + file
 
     tiles = Tiles(files)
-    midi = Midi()
-    while True:
+    while cv2.getWindowProperty('Tyler', cv2.WND_PROP_VISIBLE) >= 1:
         tiles.update_frame()
-        key = cv2.waitKey(1) & 0xFF
-        section = midi.get_midi_input()
-        if key == ord('q') or key == ord('Q'):
+        key = get_keyboard_input()
+        if key == -1:
             break
-        if section is not None:
-            tiles.switch_section(section)
+        note = midi.get_midi_input()
+        if note is not None:
+            tiles.switch_section(note)
+        elif key is not None:
+            tiles.switch_section(key)
 
     cv2.destroyAllWindows()
-    midi.destroy()

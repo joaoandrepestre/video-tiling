@@ -4,6 +4,8 @@ from turtle import circle
 
 FILE_NAME = 'config.json'
 PATH_CONFIG = 'sources'
+MIDI_CONFIG = 'midi_map'
+KEYBOARD_CONFIG = 'key_map'
 
 
 def _read_config_file() -> dict | None:
