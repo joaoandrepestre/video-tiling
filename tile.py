@@ -1,8 +1,11 @@
+from os import listdir
 import cv2
 import numpy as np
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
+from config import PATH_CONFIG, get_config
 from landscape import Landscape
+from midi import Midi
 from settigns import ENV
 
 
@@ -57,3 +60,29 @@ class Tiles:
         self.videos[section_index] = self.landscapes[landscape_index].start_section(
             section_index)
         self.landscape_for_section[section_index] = landscape_index
+
+
+def render():
+    num = ENV['LANDSCAPE_NUM']
+    srcs_dir = get_config(PATH_CONFIG)
+
+    files = ['' for i in range(6*num)]
+    for file in listdir(srcs_dir):
+        (a, b) = file.split('.', 1)[0].split('_')
+        (landscape_idx, section_idx) = (int(a), int(b))
+        i = landscape_idx * 6 + section_idx
+        files[i] = srcs_dir + '/' + file
+
+    tiles = Tiles(files)
+    midi = Midi()
+    while True:
+        tiles.update_frame()
+        key = cv2.waitKey(1) & 0xFF
+        section = midi.get_midi_input()
+        if key == ord('q') or key == ord('Q'):
+            break
+        if section is not None:
+            tiles.switch_section(section)
+
+    cv2.destroyAllWindows()
+    midi.destroy()
