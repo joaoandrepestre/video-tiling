@@ -1,11 +1,24 @@
-from asyncore import read
 import json
-from turtle import circle
+import os
 
-FILE_NAME = 'config.json'
+DIR_PATH = '/.tyler'
+FILE_NAME = DIR_PATH + '/config.json'
 PATH_CONFIG = 'sources'
 MIDI_CONFIG = 'midi_map'
 KEYBOARD_CONFIG = 'key_map'
+
+DEFAULT_CONFIG = {
+    "sources": "",
+    "midi_map": [48, 49, 50, 44, 45, 46],
+    "key_map": ["1", "2", "3", "4", "5", "6"]
+}
+
+
+def setup_config():
+    if not os.path.exists(DIR_PATH):
+        os.mkdir(DIR_PATH)
+    if not os.path.exists(FILE_NAME):
+        _write_config_file(DEFAULT_CONFIG)
 
 
 def _read_config_file() -> dict | None:
