@@ -1,0 +1,6 @@
+dearpygui==1.7.1
+vidgear==0.2.6
+ffpyplayer==4.3.5
+python-rtmidi==1.4.9
+opencv-python==4.6.0.66
+numpy==1.23.1

@@ -1,4 +1,3 @@
-from locale import atoi
 from dearpygui.dearpygui import *
 from config import KEYBOARD_CONFIG, MIDI_CONFIG, get_config, set_config, PATH_CONFIG
 from midi import Midi
