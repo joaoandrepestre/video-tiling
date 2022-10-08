@@ -3,12 +3,20 @@ import os
 
 DIR_PATH = '/.tyler'
 FILE_NAME = DIR_PATH + '/config.json'
+
+# keys
+LANDSCAPE_NUM_CONFIG = 'landscape_num'
 PATH_CONFIG = 'sources'
+ASPECT_RATIO_CONFIG = 'aspect_ratio'
+MIDI_PORT_CONFIG = 'midi_port'
 MIDI_CONFIG = 'midi_map'
 KEYBOARD_CONFIG = 'key_map'
 
 DEFAULT_CONFIG = {
+    "landscape_num": 6,
     "sources": "",
+    "aspect_ratio": (1080, 1080),
+    "midi_port": 0,
     "midi_map": [48, 49, 50, 44, 45, 46],
     "key_map": ["1", "2", "3", "4", "5", "6"]
 }

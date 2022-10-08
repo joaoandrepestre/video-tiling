@@ -1,13 +1,12 @@
 import rtmidi
 from rtmidi.midiutil import open_midiinput
 from rtmidi.midiconstants import NOTE_OFF
-from config import MIDI_CONFIG, get_config
-from settigns import ENV
+from config import MIDI_CONFIG, MIDI_PORT_CONFIG, get_config
 
 
 class Midi:
     def __init__(self) -> None:
-        portnum = ENV['MIDI_PORT']
+        portnum = get_config(MIDI_PORT_CONFIG)
         try:
             self.midiin, _ = open_midiinput(portnum)
         except rtmidi.NoDevicesError:

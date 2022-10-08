@@ -9,7 +9,7 @@ def main():
     midi = Midi()
     setup_gui()
     should_start = draw_gui(midi)
-    if(should_start):
+    if (should_start):
         render(midi)
     destroy_gui()
     midi.destroy()

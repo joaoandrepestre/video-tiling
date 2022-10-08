@@ -3,21 +3,19 @@ import cv2
 import numpy as np
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
-from config import KEYBOARD_CONFIG, PATH_CONFIG, get_config
+from config import ASPECT_RATIO_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config
 from landscape import Landscape
 from midi import Midi
-from settigns import ENV
 
 
 class Tiles:
 
-    AR = ENV['ASPECT_RATIO']
-    IMG_NOT_FOUND = cv2.resize(
-        cv2.imread('./statics/not-found.jpg'),
-        AR
-    )
-
     def __init__(self, paths: list[str]) -> None:
+        self.AR = tuple(get_config(ASPECT_RATIO_CONFIG))
+        self.IMG_NOT_FOUND = cv2.resize(
+            cv2.imread('./statics/not-found.jpg'),
+            self.AR
+        )
         if (len(paths) % 6 != 0):
             raise AttributeError('must pass a multiple of 6 video paths')
         landscape_num = int(len(paths) / 6)
@@ -33,13 +31,13 @@ class Tiles:
         for i in range(len(self.videos)):
             video = self.videos[i]
             if video is None:
-                imgs.append(Tiles.IMG_NOT_FOUND)
+                imgs.append(self.IMG_NOT_FOUND)
             else:
                 frame = video.read()
                 if frame is None:
                     video = self.restart_section(i)
                     frame = video.read()
-                imgs.append(cv2.resize(frame, Tiles.AR))
+                imgs.append(cv2.resize(frame, self.AR))
 
         l0 = np.hstack(tuple(imgs[:3]))
         l1 = np.hstack(tuple(imgs[3:]))
@@ -77,7 +75,7 @@ def get_keyboard_input():
 
 
 def render(midi: Midi):
-    num = ENV['LANDSCAPE_NUM']
+    num = get_config(LANDSCAPE_NUM_CONFIG)
     srcs_dir = get_config(PATH_CONFIG)
 
     files = ['' for i in range(6*num)]
