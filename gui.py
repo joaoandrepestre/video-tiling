@@ -1,12 +1,14 @@
+import threading
 from dearpygui.dearpygui import *
 from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG
 from midi import Midi
+import tile as T
 
 WIDTH = 450
 HEIGHT = 600
 
-should_start = False
 selected_item = None
+render_thread: threading.Thread = None
 
 
 def setup_gui():
@@ -22,9 +24,16 @@ def file_selection_callback(s, a, u):
     set_item_label(u, f'Select sources: {get_config(PATH_CONFIG)}')
 
 
-def start_callback():
-    global should_start
-    should_start = True
+def is_rendering() -> bool:
+    global render_thread
+    return render_thread is not None and render_thread.is_alive()
+
+
+def start_callback(s, a, u):
+    global render_thread
+    if (not is_rendering()):
+        render_thread = threading.Thread(group=None, target=T.render, args=[u])
+        render_thread.start()
 
 
 def key_down_callback(s, a, u):
@@ -113,8 +122,9 @@ def add_input_tuple(label='', callback=lambda s, a, u: None, default_value=(0, 0
         label='Height', callback=callback, default_value=default_value[1], user_data=1)
 
 
-def draw_gui(midi: Midi) -> bool:
-    global should_start
+def draw_gui(midi: Midi):
+    setup_gui()
+
     button = None
     midi_map = get_config(MIDI_CONFIG)
     key_map = get_config(KEYBOARD_CONFIG)
@@ -162,7 +172,7 @@ def draw_gui(midi: Midi) -> bool:
         for item in items:
             configure_item(item, user_data=items)
 
-        add_button(label='Start', callback=start_callback)
+        add_button(label='Start', callback=start_callback, user_data=midi)
 
     with handler_registry():
         add_key_down_handler(callback=key_down_callback, user_data=items)
@@ -172,12 +182,13 @@ def draw_gui(midi: Midi) -> bool:
                     width=0.9*WIDTH, height=0.75*HEIGHT)
     show_viewport()
     while is_dearpygui_running():
-        if should_start:
-            break
         midi_down_callback(midi, items)
         render_dearpygui_frame()
-    return should_start
+    destroy_gui()
 
 
 def destroy_gui():
+    global render_thread
+    if (is_rendering()):
+        render_thread.join()
     destroy_context()

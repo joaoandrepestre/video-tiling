@@ -1,17 +1,17 @@
+import threading
 from config import setup_config
 from midi import Midi
+from gui import draw_gui
 from tile import render
-from gui import setup_gui, draw_gui, destroy_gui
 
 
 def main():
     setup_config()
     midi = Midi()
-    setup_gui()
-    should_start = draw_gui(midi)
-    if (should_start):
-        render(midi)
-    destroy_gui()
+    gui_thread = threading.Thread(group=None, target=draw_gui, args=[midi])
+    gui_thread.start()
+
+    gui_thread.join()
     midi.destroy()
 
 
