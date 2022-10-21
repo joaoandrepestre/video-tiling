@@ -1,5 +1,5 @@
 from dearpygui.dearpygui import *
-from config import ASPECT_RATIO_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG
+from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG
 from midi import Midi
 
 WIDTH = 450
@@ -75,7 +75,7 @@ def select_callback(s, a, u):
         selected_item = s
 
 
-def int_input_callback(s, a, u):
+def num_input_callback(s, a, u):
     set_config(u, a)
 
 
@@ -92,6 +92,16 @@ def add_left_input_int(label='', callback=lambda s, a, u: None, default_value=0,
         ret = add_input_int(callback=callback,
                             default_value=default_value,
                             width=100, user_data=user_data)
+    return ret
+
+
+def add_left_input_float(label='', callback=lambda s, a, u: None, default_value=0, user_data=None):
+    ret = 0
+    with group(horizontal=True):
+        add_text(label)
+        ret = add_input_float(callback=callback,
+                              default_value=default_value,
+                              width=100, user_data=user_data)
     return ret
 
 
@@ -112,7 +122,7 @@ def draw_gui(midi: Midi) -> bool:
     with window(width=WIDTH, height=HEIGHT, no_title_bar=True, no_move=True, no_close=True, no_resize=True, no_collapse=True):
         with tree_node(label='VIDEO') as video_config:
             set_value(video_config, True)
-            add_left_input_int(label='Landscapes', callback=int_input_callback,
+            add_left_input_int(label='Landscapes', callback=num_input_callback,
                                default_value=get_config(LANDSCAPE_NUM_CONFIG), user_data=LANDSCAPE_NUM_CONFIG)
             button = add_button(label=f'Select sources: {get_config(PATH_CONFIG)}', user_data=last_container(),
                                 callback=lambda s, a, u: show_item(
@@ -120,9 +130,11 @@ def draw_gui(midi: Midi) -> bool:
                                 tag='file_button')
             add_input_tuple(label='Aspect Ratio', callback=tuple_input_callback,
                             default_value=get_config(ASPECT_RATIO_CONFIG))
+            add_left_input_float(label='Framerate', callback=num_input_callback,
+                                 default_value=get_config(FRAMERATE_CONFIG), user_data=FRAMERATE_CONFIG)
         with tree_node(label='MIDI') as midi_config:
             set_value(midi_config, True)
-            add_left_input_int(label='Midi Port', callback=int_input_callback,
+            add_left_input_int(label='Midi Port', callback=num_input_callback,
                                default_value=get_config(MIDI_PORT_CONFIG), user_data=MIDI_PORT_CONFIG)
             add_text('Define control for each section: (midi | keyboard)')
             with table(header_row=False, borders_outerH=True,

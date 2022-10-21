@@ -1,9 +1,10 @@
 from os import listdir
+from time import time
 import cv2
 import numpy as np
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
-from config import ASPECT_RATIO_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config
+from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config
 from landscape import Landscape
 from midi import Midi
 
@@ -77,6 +78,7 @@ def get_keyboard_input():
 def render(midi: Midi):
     num = get_config(LANDSCAPE_NUM_CONFIG)
     srcs_dir = get_config(PATH_CONFIG)
+    fps = get_config(FRAMERATE_CONFIG)
 
     files = ['' for i in range(6*num)]
     for file in listdir(srcs_dir):
@@ -86,8 +88,14 @@ def render(midi: Midi):
         files[i] = srcs_dir + '/' + file
 
     tiles = Tiles(files)
+    prev = 0
     while cv2.getWindowProperty('Tyler', cv2.WND_PROP_VISIBLE) >= 1:
-        tiles.update_frame()
+
+        time_elapsed = time() - prev
+        if (time_elapsed > 1.0 / fps):
+            prev = time()
+            tiles.update_frame()
+
         key = get_keyboard_input()
         if key == -1:
             break
