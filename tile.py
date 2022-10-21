@@ -86,6 +86,8 @@ def render(midi: Midi):
         (a, b) = file.split('.', 1)[0].split('_')
         (landscape_idx, section_idx) = (int(a), int(b))
         i = landscape_idx * 6 + section_idx
+        if (i >= 6*num):
+            continue
         files[i] = srcs_dir + '/' + file
 
     tiles = Tiles(files)
