@@ -62,6 +62,11 @@ class Tiles:
             section_index)
         self.landscape_for_section[section_index] = landscape_index
 
+    def is_audio_playing(self) -> bool:
+        vals = [l.is_audio_playing() for l in self.landscapes]
+        playing = list(filter(lambda x: x == True, vals))
+        return len(playing) > 0
+
 
 def get_keyboard_input():
     key = cv2.waitKey(1)
@@ -97,7 +102,8 @@ def render(midi: Midi):
         time_elapsed = time() - prev
         if (time_elapsed > 1.0 / fps):
             prev = time()
-            tiles.update_frame()
+            if (tiles.is_audio_playing()):
+                tiles.update_frame()
 
         key = get_keyboard_input()
         if key == -1:
