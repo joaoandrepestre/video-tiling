@@ -2,7 +2,6 @@ import threading
 from config import setup_config
 from midi import Midi
 from gui import draw_gui
-from tile import render
 
 
 def main():

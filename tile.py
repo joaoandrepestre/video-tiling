@@ -25,7 +25,8 @@ class Tiles:
             Landscape(paths[int(i*6):int(6*(i+1))]) for i in range(landscape_num)]
         self.videos: list[CamGear] = [
             self.landscapes[0].start_section(i) for i in range(6)]
-        cv2.namedWindow('Tyler')
+        cv2.namedWindow('Tyler', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Tyler', self.AR[0]*3, self.AR[1]*2)
 
     def update_frame(self) -> None:
         imgs = []

@@ -13,7 +13,8 @@ render_thread: threading.Thread = None
 
 def setup_gui():
     create_context()
-    create_viewport(width=WIDTH, height=HEIGHT, title='Tyler - Config')
+    create_viewport(min_width=WIDTH, min_height=HEIGHT,
+                    width=WIDTH, height=HEIGHT, title='Tyler - Config')
     setup_dearpygui()
     set_viewport_small_icon('./statics/tile-icon.ico')
     set_viewport_large_icon('./statics/tile-icon.ico')
@@ -70,6 +71,12 @@ def midi_down_callback(midi: Midi, items: list):
             set_item_label(selected_item, f'{midi_map[i]} | {key_map[i]}')
     set_value(selected_item, False)
     selected_item = None
+
+
+def resize_callback(s, a, u):
+    print(s)
+    print(a)
+    print(u)
 
 
 def select_callback(s, a, u):
@@ -129,7 +136,7 @@ def draw_gui(midi: Midi):
     midi_map = get_config(MIDI_CONFIG)
     key_map = get_config(KEYBOARD_CONFIG)
     items = []
-    with window(width=WIDTH, height=HEIGHT, no_title_bar=True, no_move=True, no_close=True, no_resize=True, no_collapse=True):
+    with window(tag='primary', width=WIDTH, height=HEIGHT, no_title_bar=True, no_move=True, no_close=True, no_resize=True, no_collapse=True):
         with tree_node(label='VIDEO') as video_config:
             set_value(video_config, True)
             add_left_input_int(label='Landscapes', callback=num_input_callback,
@@ -176,11 +183,13 @@ def draw_gui(midi: Midi):
 
     with handler_registry():
         add_key_down_handler(callback=key_down_callback, user_data=items)
+        # add_resize_handler(callback=resize_callback)
     add_file_dialog(label="Select scenes directory...",
                     directory_selector=True, callback=file_selection_callback,
                     show=False, modal=True, tag='file_dialog', user_data=button,
                     width=0.9*WIDTH, height=0.75*HEIGHT)
     show_viewport()
+    set_primary_window('primary', True)
     while is_dearpygui_running():
         midi_down_callback(midi, items)
         render_dearpygui_frame()
