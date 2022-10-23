@@ -15,7 +15,10 @@ class Landscape:
         return max([s.framestamp for s in self.sections])
 
     def start_section(self, idx: int, resume: bool = False) -> Section:
-        return self.sections[idx].start(self.framestamp() if resume else 0)
+        if not resume:
+            return self.sections[idx].start()
+        else:
+            return self.sections[idx].start(self.framestamp())
 
     def stop_section(self, idx: int) -> None:
         return self.sections[idx].stop()

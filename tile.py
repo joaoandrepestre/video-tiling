@@ -2,8 +2,7 @@ from os import listdir
 from time import time
 import cv2
 import numpy as np
-from vidgear.gears import CamGear
-from ffpyplayer.player import MediaPlayer
+import keyboard as kb
 from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config
 from landscape import Landscape
 from midi import Midi
@@ -64,29 +63,27 @@ class Tiles:
         self.landscape_for_section[section_index] = landscape_index
 
 
-last_key = None
-
-
-def get_keyboard_input():
-    global last_key
-    key = cv2.waitKey(1)
-    last_key = key
-    if key == -1:
-        return None
-    if key == 27:
-        return -1
+def get_keyboard_input() -> tuple[int, bool]:
     key_map: list = get_config(KEYBOARD_CONFIG)
-    try:
-        return key_map.index(chr(key).upper())
-    except ValueError:
-        return None
+    key = cv2.waitKey(1)
+    if key == -1 and not kb.is_pressed('ctrl'):
+        return (None, False)
+    if key == 27:
+        return (-1, False)
+    for i in range(len(key_map)):
+        key = key_map[i]
+        if (kb.is_pressed(f'ctrl + {key}')):
+            return (i, True)
+        if (kb.is_pressed(key)):
+            return (i, False)
+    return (None, False)
 
 
-def render(midi: Midi):
+def setup_tiles() -> Tiles:
     num = get_config(LANDSCAPE_NUM_CONFIG)
     srcs_dir = get_config(PATH_CONFIG)
-    fps = get_config(FRAMERATE_CONFIG)
 
+    # Load files
     files = ['' for i in range(6*num)]
     for file in listdir(srcs_dir):
         (a, b) = file.split('.', 1)[0].split('_')
@@ -96,7 +93,13 @@ def render(midi: Midi):
             continue
         files[i] = srcs_dir + '/' + file
 
-    tiles = Tiles(files)
+    return Tiles(files)
+
+
+def render(midi: Midi):
+    tiles = setup_tiles()
+    fps = get_config(FRAMERATE_CONFIG)
+
     prev = 0
     while cv2.getWindowProperty('Tyler', cv2.WND_PROP_VISIBLE) >= 1:
 
@@ -105,15 +108,13 @@ def render(midi: Midi):
             prev = time()
             tiles.update_frame()
 
-        key = get_keyboard_input()
-        if last_key is not None and last_key > 0:
-            print(last_key)
+        key, resume = get_keyboard_input()
         if key == -1:
             break
         note = midi.get_midi_input()
         if note is not None:
-            tiles.switch_section(note)
-        elif key is not None:
-            tiles.switch_section(key)
+            tiles.switch_section(note, resume=kb.is_pressed('ctrl'))
+        if key is not None:
+            tiles.switch_section(key, resume)
 
     cv2.destroyAllWindows()
