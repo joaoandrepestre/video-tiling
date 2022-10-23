@@ -1,29 +1,21 @@
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
 
+from section import Section
+
+
 class Landscape:
     def __init__(self, paths: list[str]) -> None:
-        self.paths: list[str] = paths
-        self.sections: list[CamGear] = [None for i in range(len(paths))]
-        self.audios: list[MediaPlayer] = [None for i in range(len(paths))]
+        #self.paths: list[str] = paths
+        #self.sections: list[CamGear] = [None for i in range(len(paths))]
+        #self.audios: list[MediaPlayer] = [None for i in range(len(paths))]
+        self.sections: list[Section] = [Section(path) for path in paths]
 
-    def start_section(self, idx: int) -> CamGear:
-        path = self.paths[idx]
-        if (path == ''): return None
-        self.sections[idx] = CamGear(source=path)
-        video = self.sections[idx]
-        video.start()
-        self.audios[idx] = MediaPlayer(path)
-        return video
+    def framestamp(self) -> int:
+        return max([s.framestamp for s in self.sections])
+
+    def start_section(self, idx: int, resume: bool = False) -> Section:
+        return self.sections[idx].start(self.framestamp() if resume else 0)
 
     def stop_section(self, idx: int) -> None:
-        section = self.sections[idx]
-        if section is not None:
-            section.stop()
-        self.sections[idx] = None
-
-        audio = self.audios[idx]
-        if audio is not None:
-            audio.set_mute(True)
-            audio.close_player()
-        self.audios[idx] = None
+        return self.sections[idx].stop()

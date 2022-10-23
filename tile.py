@@ -7,6 +7,7 @@ from ffpyplayer.player import MediaPlayer
 from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config
 from landscape import Landscape
 from midi import Midi
+from section import Section
 
 
 class Tiles:
@@ -23,22 +24,22 @@ class Tiles:
         self.landscape_for_section: list[int] = [0 for i in range(6)]
         self.landscapes: list[Landscape] = [
             Landscape(paths[int(i*6):int(6*(i+1))]) for i in range(landscape_num)]
-        self.videos: list[CamGear] = [
+        self.sections: list[Section] = [
             self.landscapes[0].start_section(i) for i in range(6)]
         cv2.namedWindow('Tyler', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('Tyler', self.AR[0]*3, self.AR[1]*2)
 
     def update_frame(self) -> None:
         imgs = []
-        for i in range(len(self.videos)):
-            video = self.videos[i]
-            if video is None:
+        for i in range(len(self.sections)):
+            section = self.sections[i]
+            if section is None:
                 imgs.append(self.IMG_NOT_FOUND)
             else:
-                frame = video.read()
+                frame = section.read_frame()
                 if frame is None:
-                    video = self.restart_section(i)
-                    frame = video.read()
+                    section = self.restart_section(i)
+                    frame = section.read_frame()
                 imgs.append(cv2.resize(frame, self.AR))
 
         l0 = np.hstack(tuple(imgs[:3]))
@@ -47,24 +48,29 @@ class Tiles:
 
         cv2.imshow('Tyler', out)
 
-    def restart_section(self, section_index: int) -> None:
+    def restart_section(self, section_index: int) -> Section:
         landscape_index = self.landscape_for_section[section_index]
         self.landscapes[landscape_index].stop_section(section_index)
-        self.videos[section_index] = self.landscapes[landscape_index].start_section(
+        self.sections[section_index] = self.landscapes[landscape_index].start_section(
             section_index)
-        return self.videos[section_index]
+        return self.sections[section_index]
 
-    def switch_section(self, section_index: int) -> None:
+    def switch_section(self, section_index: int, resume: bool = False) -> None:
         landscape_index = self.landscape_for_section[section_index]
         self.landscapes[landscape_index].stop_section(section_index)
         landscape_index = (landscape_index + 1) % len(self.landscapes)
-        self.videos[section_index] = self.landscapes[landscape_index].start_section(
-            section_index)
+        self.sections[section_index] = self.landscapes[landscape_index].start_section(
+            section_index, resume)
         self.landscape_for_section[section_index] = landscape_index
 
 
+last_key = None
+
+
 def get_keyboard_input():
+    global last_key
     key = cv2.waitKey(1)
+    last_key = key
     if key == -1:
         return None
     if key == 27:
@@ -100,6 +106,8 @@ def render(midi: Midi):
             tiles.update_frame()
 
         key = get_keyboard_input()
+        if last_key is not None and last_key > 0:
+            print(last_key)
         if key == -1:
             break
         note = midi.get_midi_input()
