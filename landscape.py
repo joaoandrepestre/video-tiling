@@ -1,6 +1,7 @@
 from vidgear.gears import CamGear
 from ffpyplayer.player import MediaPlayer
 
+
 class Landscape:
     def __init__(self, paths: list[str]) -> None:
         self.paths: list[str] = paths
@@ -9,7 +10,8 @@ class Landscape:
 
     def start_section(self, idx: int) -> CamGear:
         path = self.paths[idx]
-        if (path == ''): return None
+        if (path == ''):
+            return None
         self.sections[idx] = CamGear(source=path)
         video = self.sections[idx]
         video.start()

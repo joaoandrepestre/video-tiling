@@ -73,6 +73,14 @@ def midi_down_callback(midi: Midi, items: list):
     selected_item = None
 
 
+def midi_retry_connection(midi: Midi, midi_status: int | None):
+    res = midi.try_connect_device()
+    label = 'Connected' if res else 'Disconnected'
+    color = [0, 255, 0] if res else [255, 0, 0]
+    set_value(midi_status, label)
+    configure_item(midi_status, color=color)
+
+
 def resize_callback(s, a, u):
     print(s)
     print(a)
@@ -136,6 +144,7 @@ def draw_gui(midi: Midi):
     midi_map = get_config(MIDI_CONFIG)
     key_map = get_config(KEYBOARD_CONFIG)
     items = []
+    midi_status = None
     with window(tag='primary', width=WIDTH, height=HEIGHT, no_title_bar=True, no_move=True, no_close=True, no_resize=True, no_collapse=True):
         with tree_node(label='VIDEO') as video_config:
             set_value(video_config, True)
@@ -150,6 +159,9 @@ def draw_gui(midi: Midi):
             add_left_input_float(label='Framerate', callback=num_input_callback,
                                  default_value=get_config(FRAMERATE_CONFIG), user_data=FRAMERATE_CONFIG)
         with tree_node(label='MIDI') as midi_config:
+            with group(horizontal=True):
+                add_text('Status: ')
+                midi_status = add_text(f'Disconnected', color=[255, 0, 0])
             set_value(midi_config, True)
             add_left_input_int(label='Midi Port', callback=num_input_callback,
                                default_value=get_config(MIDI_PORT_CONFIG), user_data=MIDI_PORT_CONFIG)
@@ -192,6 +204,7 @@ def draw_gui(midi: Midi):
     set_primary_window('primary', True)
     while is_dearpygui_running():
         midi_down_callback(midi, items)
+        midi_retry_connection(midi, midi_status)
         render_dearpygui_frame()
     destroy_gui()
 
