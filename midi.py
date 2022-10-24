@@ -5,12 +5,22 @@ from config import MIDI_CONFIG, MIDI_PORT_CONFIG, get_config
 
 
 class Midi:
-    def __init__(self) -> None:
+    def __init__(self):
+        self.midiin = None
+        self.try_connect_device()
+
+    def is_device_connected(self) -> bool:
+        return self.midiin is not None
+
+    def try_connect_device(self) -> bool:
+        if self.is_device_connected():
+            return True
         portnum = get_config(MIDI_PORT_CONFIG)
         try:
             self.midiin, _ = open_midiinput(portnum)
         except rtmidi.NoDevicesError:
             self.midiin = None
+        return self.is_device_connected()
 
     def get_midi_note(self) -> str:
         if self.midiin is None:

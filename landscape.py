@@ -1,6 +1,3 @@
-from vidgear.gears import CamGear
-from ffpyplayer.player import MediaPlayer
-
 from section import Section
 
 
