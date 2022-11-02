@@ -19,7 +19,7 @@ DEFAULT_CONFIG = {
     "aspect_ratio": (1080, 1080),
     "framerate": 23.976,
     "midi_port": 0,
-    "midi_map": [48, 49, 50, 44, 45, 46],
+    "midi_map": ["48", "49", "50", "44", "45", "46"],
     "key_map": ["4", "5", "6", "1", "2", "3"]
 }
 

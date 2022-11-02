@@ -29,7 +29,7 @@ class Midi:
         if msg is None:
             return None
         [status, note, velocity] = msg[0]
-        if status == NOTE_OFF:
+        if status == NOTE_OFF or velocity == 0:
             return None
         return f'{note}'
 
