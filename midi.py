@@ -1,6 +1,6 @@
 import rtmidi
 from rtmidi.midiutil import open_midiinput
-from rtmidi.midiconstants import NOTE_OFF
+from rtmidi.midiconstants import NOTE_ON
 from config import MIDI_CONFIG, MIDI_PORT_CONFIG, get_config
 
 
@@ -13,13 +13,13 @@ class Midi:
         return self.midiin is not None
 
     def try_connect_device(self) -> bool:
-        if self.is_device_connected():
-            return True
         portnum = get_config(MIDI_PORT_CONFIG)
         try:
-            self.midiin, _ = open_midiinput(portnum)
-        except rtmidi.NoDevicesError:
+            self.midiin, _ = open_midiinput(portnum, interactive=False)
+        except (rtmidi.NoDevicesError, rtmidi.InvalidPortError):
             self.midiin = None
+        except rtmidi.SystemError:
+            pass
         return self.is_device_connected()
 
     def get_midi_note(self) -> str:
@@ -29,7 +29,7 @@ class Midi:
         if msg is None:
             return None
         [status, note, velocity] = msg[0]
-        if status == NOTE_OFF or velocity == 0:
+        if status != NOTE_ON or velocity == 0:
             return None
         return f'{note}'
 

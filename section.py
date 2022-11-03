@@ -30,7 +30,7 @@ class Section:
         self.video.start()
         self.framestamp = 0
         self.seek(frame_offset)
-        self.audio = MediaPlayer(self.path)
+        #self.audio = MediaPlayer(self.path)
         return self
 
     def stop(self) -> None:
