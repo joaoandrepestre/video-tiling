@@ -1,4 +1,5 @@
 dearpygui==1.7.1
+PyQt6==6.4.0
 vidgear==0.2.6
 ffpyplayer==4.3.5
 python-rtmidi==1.4.9
