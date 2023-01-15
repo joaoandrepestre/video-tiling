@@ -35,10 +35,11 @@ class Tiles:
             if section is None:
                 imgs.append(self.IMG_NOT_FOUND)
             else:
-                frame = section.read_frame()
+                landscape_index = self.landscape_for_section[i]
+                frame = self.landscapes[landscape_index].get_frame(i)
                 if frame is None:
                     section = self.restart_section(i)
-                    frame = section.read_frame()
+                    frame = self.landscapes[landscape_index].get_frame(i)
                 imgs.append(cv2.resize(frame, self.AR))
 
         l0 = np.hstack(tuple(imgs[:3]))
@@ -49,8 +50,7 @@ class Tiles:
 
     def restart_section(self, section_index: int) -> Section:
         landscape_index = self.landscape_for_section[section_index]
-        self.landscapes[landscape_index].stop_section(section_index)
-        self.sections[section_index] = self.landscapes[landscape_index].start_section(
+        self.sections[section_index] = self.landscapes[landscape_index].restart_section(
             section_index)
         return self.sections[section_index]
 
