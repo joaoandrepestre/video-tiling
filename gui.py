@@ -7,17 +7,36 @@ import tile as T
 WIDTH = 450
 HEIGHT = 600
 
+midi_items: list = []
 selected_item = None
 render_thread: threading.Thread = None
 
 
-def setup_gui():
+def setup_gui(midi: Midi):
     create_context()
     create_viewport(min_width=WIDTH, min_height=HEIGHT,
                     width=WIDTH, height=HEIGHT, title='Tyler - Config')
     setup_dearpygui()
     set_viewport_small_icon('./statics/tile-icon.ico')
     set_viewport_large_icon('./statics/tile-icon.ico')
+    midi.register_note_callback(midi_event_handler)
+
+
+def midi_event_handler(note: int, velocity: int):
+    global midi_items, selected_item
+    print((note, velocity))
+    if selected_item is None:
+        return
+    midi_map = get_config(MIDI_CONFIG)
+    key_map = get_config(KEYBOARD_CONFIG)
+    for i in range(len(midi_items)):
+        item = midi_items[i]
+        if item == selected_item:
+            midi_map[i] = note
+            set_config(MIDI_CONFIG, midi_map)
+            set_item_label(selected_item, f'{midi_map[i]} | {key_map[i]}')
+    set_value(selected_item, False)
+    selected_item = None
 
 
 def file_selection_callback(s, a, u):
@@ -61,6 +80,7 @@ def midi_down_callback(midi: Midi, items: list):
     note = midi.get_midi_note()
     if note is None:
         return
+    """
     midi_map = get_config(MIDI_CONFIG)
     key_map = get_config(KEYBOARD_CONFIG)
     for i in range(len(items)):
@@ -71,6 +91,7 @@ def midi_down_callback(midi: Midi, items: list):
             set_item_label(selected_item, f'{midi_map[i]} | {key_map[i]}')
     set_value(selected_item, False)
     selected_item = None
+    """
 
 
 def midi_retry_connection(midi: Midi, midi_status: int | None):
@@ -138,7 +159,8 @@ def add_input_tuple(label='', callback=lambda s, a, u: None, default_value=(0, 0
 
 
 def draw_gui(midi: Midi):
-    setup_gui()
+    global midi_items
+    setup_gui(midi)
 
     button = None
     midi_map = get_config(MIDI_CONFIG)
@@ -190,6 +212,7 @@ def draw_gui(midi: Midi):
 
         for item in items:
             configure_item(item, user_data=items)
+        midi_items = items
 
         add_button(label='Start', callback=start_callback, user_data=midi)
 
@@ -203,8 +226,8 @@ def draw_gui(midi: Midi):
     show_viewport()
     set_primary_window('primary', True)
     while is_dearpygui_running():
-        midi_down_callback(midi, items)
-        midi_retry_connection(midi, midi_status)
+        #midi_down_callback(midi, items)
+        #midi_retry_connection(midi, midi_status)
         render_dearpygui_frame()
     destroy_gui()
 
