@@ -22,7 +22,6 @@ class Midi:
     # threading
     __running: bool = False
     __lock: Lock = None
-    __read_queue_thread: Thread | None = None
     __connection_thread: Thread | None = None
 
     # callbacks
@@ -32,8 +31,6 @@ class Midi:
     def __init__(self):
         self.__running = True
         self.__lock = Lock()
-        self.__read_queue_thread = Thread(
-            group=None, target=self.__read_from_queue)
         self.__connection_thread = Thread(
             group=None, target=self.__try_connect_device)
         self.__connection_thread.start()
@@ -42,6 +39,29 @@ class Midi:
         callbacks = self.__callbacks.get(type, set())
         callbacks.add(callback)
         self.__callbacks[type] = callbacks
+        self.__register_callbacks()
+
+    def __register_callbacks(self) -> None:
+        if (self.is_device_connected()):
+            self.__midiin.set_callback(self.__callback_builder())
+
+    def __callback_builder(self) -> Callable[[tuple[list, float], object], None]:
+        def callback(event, data=None):
+            message, _ = event
+            status, arg1, arg2 = message
+            try:
+                received_type = MidiMessageType(status)
+                print(
+                    f'Midi event of type {received_type.name} was triggered with args: {(arg1, arg2)}')
+                for (type, callbacks) in self.__callbacks.items():
+                    if (received_type is not type):
+                        continue
+                    for callback in callbacks:
+                        callback(arg1, arg2)
+            except ValueError:
+                print(
+                    f'Midi event of unknown type {status} was triggered with args: {(arg1, arg2)}')
+        return callback
 
     def __trigger_callbacks(self, status: int, arg1: int, arg2: int) -> None:
         try:
@@ -68,6 +88,8 @@ class Midi:
         delay = 1
         previous_result = False
         while (self.__running):
+            if (delay > 10.0):
+                break
             portnum = get_config(MIDI_PORT_CONFIG)
             self.__lock.acquire()
             try:
@@ -82,14 +104,18 @@ class Midi:
             else:
                 delay = 1
             previous_result = self.is_device_connected()
+            msg = f'Failed to connect to device. Trying again in {delay} seconds.' if not previous_result else f'Device connected! Checking again in {delay} seconds.'
+            print(msg)
             self.__start_reading()
             sleep(delay)
+        if delay > 10.0:
+            print('Waited too long, stopping checking midi device')
 
     def __start_reading(self) -> None:
         if (self.__read_queue_thread.is_alive()
                 or not self.is_device_connected()):
             return
-        self.__read_queue_thread.start()
+        self.__register_callbacks()
 
     def __read_midi_message(self) -> tuple[int, int, int] | None:
         if not self.is_device_connected():
@@ -108,7 +134,9 @@ class Midi:
             if msg is None:
                 continue
             status, arg1, arg2 = msg
-            self.__trigger_callbacks(status, arg1, arg2)
+            t = Thread(target=self.__trigger_callbacks,
+                       args=(status, arg1, arg2))
+            t.start()
             sleep(0.8)
 
     def get_midi_note(self) -> str:
@@ -130,8 +158,6 @@ class Midi:
             return None
 
     def __wait_threads(self) -> None:
-        if (self.__read_queue_thread.is_alive()):
-            self.__read_queue_thread.join()
         if (self.__connection_thread.is_alive()):
             self.__connection_thread.join()
 
