@@ -1,7 +1,7 @@
 import threading
 from dearpygui.dearpygui import *
-from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG
-from midi import Midi
+from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG, DEFAULT_CONFIG
+from midi import Midi, MidiMessageType
 import tile as T
 
 WIDTH = 450
@@ -10,6 +10,7 @@ HEIGHT = 600
 midi_items: list = []
 selected_item = None
 render_thread: threading.Thread = None
+framerate_input = None
 
 
 def setup_gui(midi: Midi):
@@ -19,20 +20,34 @@ def setup_gui(midi: Midi):
     setup_dearpygui()
     set_viewport_small_icon('./statics/tile-icon.ico')
     set_viewport_large_icon('./statics/tile-icon.ico')
-    midi.register_note_callback(midi_event_handler)
+    midi.subscribe(MidiMessageType.NOTE_ON, midi_note_handler)
+    midi.subscribe(MidiMessageType.CONTROL_CHANGE, midi_knob_handler)
 
 
-def midi_event_handler(note: int, velocity: int):
+def midi_knob_handler(knob: int, value: int) -> None:
+    global framerate_input
+    if (framerate_input is None):
+        return
+    if (knob != 1):  # make knob configurable
+        return
+    default = DEFAULT_CONFIG[FRAMERATE_CONFIG]
+    nfr = (value / 127.0) * default + default / 2.0
+    set_config(FRAMERATE_CONFIG, nfr)
+    set_value(framerate_input, nfr)
+
+
+def midi_note_handler(note: int, velocity: int) -> None:
     global midi_items, selected_item
-    print((note, velocity))
     if selected_item is None:
+        return
+    if (velocity == 0):
         return
     midi_map = get_config(MIDI_CONFIG)
     key_map = get_config(KEYBOARD_CONFIG)
     for i in range(len(midi_items)):
         item = midi_items[i]
         if item == selected_item:
-            midi_map[i] = note
+            midi_map[i] = f'{note}'
             set_config(MIDI_CONFIG, midi_map)
             set_item_label(selected_item, f'{midi_map[i]} | {key_map[i]}')
     set_value(selected_item, False)
@@ -95,7 +110,7 @@ def midi_down_callback(midi: Midi, items: list):
 
 
 def midi_retry_connection(midi: Midi, midi_status: int | None):
-    res = midi.try_connect_device()
+    res = midi.is_device_connected()
     label = 'Connected' if res else 'Disconnected'
     color = [0, 255, 0] if res else [255, 0, 0]
     set_value(midi_status, label)
@@ -159,7 +174,7 @@ def add_input_tuple(label='', callback=lambda s, a, u: None, default_value=(0, 0
 
 
 def draw_gui(midi: Midi):
-    global midi_items
+    global midi_items, framerate_input
     setup_gui(midi)
 
     button = None
@@ -178,8 +193,8 @@ def draw_gui(midi: Midi):
                                 tag='file_button')
             add_input_tuple(label='Aspect Ratio', callback=tuple_input_callback,
                             default_value=get_config(ASPECT_RATIO_CONFIG))
-            add_left_input_float(label='Framerate', callback=num_input_callback,
-                                 default_value=get_config(FRAMERATE_CONFIG), user_data=FRAMERATE_CONFIG)
+            framerate_input = add_left_input_float(label='Framerate', callback=num_input_callback,
+                                                   default_value=get_config(FRAMERATE_CONFIG), user_data=FRAMERATE_CONFIG)
         with tree_node(label='MIDI') as midi_config:
             with group(horizontal=True):
                 add_text('Status: ')
@@ -227,7 +242,7 @@ def draw_gui(midi: Midi):
     set_primary_window('primary', True)
     while is_dearpygui_running():
         #midi_down_callback(midi, items)
-        #midi_retry_connection(midi, midi_status)
+        midi_retry_connection(midi, midi_status)
         render_dearpygui_frame()
     destroy_gui()
 

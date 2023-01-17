@@ -1,72 +1,127 @@
 from typing import Callable
-import rtmidi
+from enum import Enum
+from rtmidi import NoDevicesError, InvalidPortError, SystemError
 from rtmidi.midiutil import open_midiinput
-from rtmidi.midiconstants import NOTE_ON, CONTROL_CHANGE
+from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, CONTROL_CHANGE
 from config import MIDI_CONFIG, MIDI_PORT_CONFIG, get_config
-from threading import Thread
+from threading import Thread, Lock
+from time import sleep
+
+
+class MidiMessageType(Enum):
+    NOTE_ON = NOTE_ON
+    NOTE_OFF = NOTE_OFF
+    CONTROL_CHANGE = CONTROL_CHANGE
 
 
 class Midi:
+
+    # midi
+    __midiin = None
+
+    # threading
+    __running: bool = False
+    __lock: Lock = None
+    __read_queue_thread: Thread | None = None
+    __connection_thread: Thread | None = None
+
+    # callbacks
+    __callbacks: dict[MidiMessageType,
+                      set[Callable[[int, int], None]]] = dict()
+
     def __init__(self):
-        self.midiin = None
-        self.running: bool = False
-        self.read_thread: Thread = Thread(
-            group=None, target=self.read_from_queue)
-        self.try_connect_device()
-        self.note_callbacks: list[Callable] = []
-        self.knob_callbacks: list[Callable] = []
+        self.__running = True
+        self.__lock = Lock()
+        self.__read_queue_thread = Thread(
+            group=None, target=self.__read_from_queue)
+        self.__connection_thread = Thread(
+            group=None, target=self.__try_connect_device)
+        self.__connection_thread.start()
 
-    def register_note_callback(self, callback: Callable):
-        self.note_callbacks.append(callback)
+    def subscribe(self, type: MidiMessageType, callback: Callable[[int, int], None]) -> None:
+        callbacks = self.__callbacks.get(type, set())
+        callbacks.add(callback)
+        self.__callbacks[type] = callbacks
 
-    def trigger_note_callbacks(self, note: int, velocity: int):
-        for callback in self.note_callbacks:
-            callback(note, velocity)
-
-    def register_knob_callback(self, callback: Callable):
-        self.knob_callbacks.append(callback)
-
-    def trigger_knob_callbacks(self, knob: int, value: int):
-        for callback in self.knob_callbacks:
-            callback(knob, value)
+    def __trigger_callbacks(self, status: int, arg1: int, arg2: int) -> None:
+        try:
+            type = MidiMessageType(status)
+            print(
+                f'Midi event of type {type.name} was triggered with args: {(arg1, arg2)}')
+            callbacks = self.__callbacks.get(type)
+            if (callbacks is None):
+                return
+            for callback in callbacks:
+                callback(arg1, arg2)
+        except ValueError:
+            print(
+                f'Midi event of unknown type {status} was triggered with args: {(arg1, arg2)}')
+            pass
 
     def is_device_connected(self) -> bool:
-        return self.midiin is not None
-
-    def try_connect_device(self) -> bool:
-        portnum = get_config(MIDI_PORT_CONFIG)
-        try:
-            self.midiin, _ = open_midiinput(portnum, interactive=False)
-        except (rtmidi.NoDevicesError, rtmidi.InvalidPortError):
-            self.midiin = None
-        except rtmidi.SystemError:
-            pass
-        connected = self.is_device_connected()
-        if connected:
-            self.running = True
-            self.read_thread.start()
+        self.__lock.acquire()
+        connected = self.__midiin is not None
+        self.__lock.release()
         return connected
 
-    def read_from_queue(self):
-        while (self.running):
-            self.get_midi_note()
+    def __try_connect_device(self) -> None:
+        delay = 1
+        previous_result = False
+        while (self.__running):
+            portnum = get_config(MIDI_PORT_CONFIG)
+            self.__lock.acquire()
+            try:
+                self.__midiin, _ = open_midiinput(portnum, interactive=False)
+            except (NoDevicesError, InvalidPortError):
+                self.__midiin = None
+            except SystemError:
+                pass
+            self.__lock.release()
+            if (self.is_device_connected() == previous_result):
+                delay += 0.5
+            else:
+                delay = 1
+            previous_result = self.is_device_connected()
+            self.__start_reading()
+            sleep(delay)
 
-    def get_midi_note(self) -> str:
-        if self.midiin is None:
+    def __start_reading(self) -> None:
+        if (self.__read_queue_thread.is_alive()
+                or not self.is_device_connected()):
+            return
+        self.__read_queue_thread.start()
+
+    def __read_midi_message(self) -> tuple[int, int, int] | None:
+        if not self.is_device_connected():
             return None
-        msg = self.midiin.get_message()
+        self.__lock.acquire()
+        msg = self.__midiin.get_message()
+        self.__lock.release()
         if msg is None:
             return None
-        [status, note, velocity] = msg[0]
+        [status, arg1, arg2] = msg[0]
+        return (status, arg1, arg2)
+
+    def __read_from_queue(self) -> None:
+        while (self.__running):
+            msg = self.__read_midi_message()
+            if msg is None:
+                continue
+            status, arg1, arg2 = msg
+            self.__trigger_callbacks(status, arg1, arg2)
+            sleep(0.8)
+
+    def get_midi_note(self) -> str:
+        msg = self.__read_midi_message()
+        if msg is None:
+            return None
+        status, note, velocity = msg
+        self.__trigger_callbacks(status, note, velocity)
         if status != NOTE_ON or velocity == 0:
             return None
-        self.trigger_note_callbacks(note, velocity)
         return f'{note}'
 
     def get_midi_input(self) -> int:
-        if self.midiin is None:
-            return None
-
         note = self.get_midi_note()
         midi_map: list = get_config(MIDI_CONFIG)
         try:
@@ -74,9 +129,15 @@ class Midi:
         except ValueError:
             return None
 
+    def __wait_threads(self) -> None:
+        if (self.__read_queue_thread.is_alive()):
+            self.__read_queue_thread.join()
+        if (self.__connection_thread.is_alive()):
+            self.__connection_thread.join()
+
     def destroy(self):
-        self.running = False
-        self.read_thread.join()
-        if self.midiin is not None:
-            self.midiin.close_port()
-        del self.midiin
+        self.__running = False
+        self.__wait_threads()
+        if self.is_device_connected():
+            self.__midiin.close_port()
+        del self.__midiin

@@ -1,11 +1,12 @@
 from os import listdir
 from time import time
+from functools import partial
 import cv2
 import numpy as np
 import keyboard as kb
-from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config
+from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config, MIDI_CONFIG
 from landscape import Landscape
-from midi import Midi
+from midi import Midi, MidiMessageType
 from section import Section
 
 
@@ -96,9 +97,24 @@ def setup_tiles() -> Tiles:
     return Tiles(files)
 
 
+def handle_midi_note_on(tiles: Tiles, note: int, velocity: int) -> None:
+    if (velocity == 0):
+        return
+    midi_map: list = get_config(MIDI_CONFIG)
+    try:
+        section = midi_map.index(f'{note}')
+        tiles.switch_section(section, resume=kb.is_pressed('ctrl'))
+    except ValueError:
+        return
+
+
 def render(midi: Midi):
     tiles = setup_tiles()
     fps = get_config(FRAMERATE_CONFIG)
+
+    # subscribe to midid events
+    midi.subscribe(MidiMessageType.NOTE_ON,
+                   partial(handle_midi_note_on, tiles))
 
     prev = 0
     while cv2.getWindowProperty('Tyler', cv2.WND_PROP_VISIBLE) >= 1:
@@ -111,9 +127,9 @@ def render(midi: Midi):
         key, resume = get_keyboard_input()
         if key == -1:
             break
-        note = midi.get_midi_input()
-        if note is not None:
-            tiles.switch_section(note, resume=kb.is_pressed('ctrl'))
+        #note = midi.get_midi_input()
+        # if note is not None:
+        #    tiles.switch_section(note, resume=kb.is_pressed('ctrl'))
         if key is not None:
             tiles.switch_section(key, resume)
 
