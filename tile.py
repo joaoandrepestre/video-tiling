@@ -1,6 +1,5 @@
 from os import listdir
 from time import time
-from functools import partial
 import cv2
 import numpy as np
 import keyboard as kb
@@ -100,7 +99,7 @@ def setup_tiles() -> Tiles:
 midi_input: int = None
 
 
-def handle_midi_note_on(tiles: Tiles, note: int, velocity: int) -> None:
+def handle_midi_note_on(note: int, velocity: int) -> None:
     global midi_input
     if (velocity == 0):
         return
@@ -118,7 +117,7 @@ def render(midi: Midi):
 
     # subscribe to midid events
     midi.subscribe(MidiMessageType.NOTE_ON,
-                   partial(handle_midi_note_on, tiles))
+                   handle_midi_note_on)
 
     prev = 0
     while cv2.getWindowProperty('Tyler', cv2.WND_PROP_VISIBLE) >= 1:
