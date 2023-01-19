@@ -1,6 +1,6 @@
 import threading
 from dearpygui.dearpygui import *
-from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG, DEFAULT_CONFIG
+from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, MIDI_CONFIG, MIDI_PORT_CONFIG, get_config, set_config, PATH_CONFIG, DEFAULT_CONFIG, KNOB_CONFIG
 from midi import Midi, MidiMessageType
 import tile as T
 
@@ -26,9 +26,10 @@ def setup_gui(midi: Midi):
 
 def midi_knob_handler(knob: int, value: int) -> None:
     global framerate_input
+    knob_config = get_config(KNOB_CONFIG)
     if (framerate_input is None):
         return
-    if (knob != 1):  # make knob configurable
+    if (knob != knob_config):
         return
     default = DEFAULT_CONFIG[FRAMERATE_CONFIG]
     nfr = (value / 127.0) * default + default / 2.0
@@ -181,6 +182,8 @@ def draw_gui(midi: Midi):
             set_value(midi_config, True)
             add_left_input_int(label='Midi Port', callback=num_input_callback,
                                default_value=get_config(MIDI_PORT_CONFIG), user_data=MIDI_PORT_CONFIG)
+            add_left_input_int(label='Framerate Knob', callback=num_input_callback,
+                               default_value=get_config(KNOB_CONFIG), user_data=KNOB_CONFIG)
             add_text('Define control for each section: (midi | keyboard)')
             with table(header_row=False, borders_outerH=True,
                        borders_outerV=True, width=240, height=160):
