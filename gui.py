@@ -97,12 +97,6 @@ def midi_retry_connection(midi: Midi, midi_status: int | None):
     configure_item(midi_status, color=color)
 
 
-def resize_callback(s, a, u):
-    print(s)
-    print(a)
-    print(u)
-
-
 def select_callback(s, a, u):
     global selected_item
     for i in range(len(u)):
@@ -215,7 +209,6 @@ def draw_gui(midi: Midi):
 
     with handler_registry():
         add_key_down_handler(callback=key_down_callback, user_data=items)
-        # add_resize_handler(callback=resize_callback)
     add_file_dialog(label="Select scenes directory...",
                     directory_selector=True, callback=file_selection_callback,
                     show=False, modal=True, tag='file_dialog', user_data=button,

@@ -1,4 +1,3 @@
-import threading
 from config import setup_config, teardown_config
 from midi import Midi
 from gui import draw_gui

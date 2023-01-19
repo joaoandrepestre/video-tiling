@@ -4,7 +4,7 @@ from rtmidi import NoDevicesError, InvalidPortError, SystemError
 from rtmidi.midiutil import open_midiinput
 from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, CONTROL_CHANGE
 from config import MIDI_PORT_CONFIG, get_config
-from threading import Thread, Lock
+from threading import Thread
 from time import sleep
 
 

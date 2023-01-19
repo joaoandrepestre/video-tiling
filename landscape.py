@@ -3,9 +3,6 @@ from section import Section
 
 class Landscape:
     def __init__(self, paths: list[str]) -> None:
-        #self.paths: list[str] = paths
-        #self.sections: list[CamGear] = [None for i in range(len(paths))]
-        #self.audios: list[MediaPlayer] = [None for i in range(len(paths))]
         self.sections: list[Section] = [Section(path) for path in paths]
 
     def framestamp(self) -> int:
