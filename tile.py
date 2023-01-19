@@ -97,18 +97,22 @@ def setup_tiles() -> Tiles:
     return Tiles(files)
 
 
+midi_input: int = None
+
+
 def handle_midi_note_on(tiles: Tiles, note: int, velocity: int) -> None:
+    global midi_input
     if (velocity == 0):
         return
     midi_map: list = get_config(MIDI_CONFIG)
     try:
-        section = midi_map.index(f'{note}')
-        tiles.switch_section(section, resume=kb.is_pressed('ctrl'))
+        midi_input = midi_map.index(f'{note}')
     except ValueError:
         return
 
 
 def render(midi: Midi):
+    global midi_input
     tiles = setup_tiles()
     fps = get_config(FRAMERATE_CONFIG)
 
@@ -127,9 +131,9 @@ def render(midi: Midi):
         key, resume = get_keyboard_input()
         if key == -1:
             break
-        #note = midi.get_midi_input()
-        # if note is not None:
-        #    tiles.switch_section(note, resume=kb.is_pressed('ctrl'))
+        if midi_input is not None:
+            tiles.switch_section(midi_input, resume=kb.is_pressed('ctrl'))
+            midi_input = None
         if key is not None:
             tiles.switch_section(key, resume)
 

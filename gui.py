@@ -88,27 +88,6 @@ def key_down_callback(s, a, u):
     selected_item = None
 
 
-def midi_down_callback(midi: Midi, items: list):
-    global selected_item
-    if selected_item is None:
-        return
-    note = midi.get_midi_note()
-    if note is None:
-        return
-    """
-    midi_map = get_config(MIDI_CONFIG)
-    key_map = get_config(KEYBOARD_CONFIG)
-    for i in range(len(items)):
-        item = items[i]
-        if item == selected_item:
-            midi_map[i] = note
-            set_config(MIDI_CONFIG, midi_map)
-            set_item_label(selected_item, f'{midi_map[i]} | {key_map[i]}')
-    set_value(selected_item, False)
-    selected_item = None
-    """
-
-
 def midi_retry_connection(midi: Midi, midi_status: int | None):
     res = midi.is_device_connected()
     label = 'Connected' if res else 'Disconnected'
@@ -241,7 +220,6 @@ def draw_gui(midi: Midi):
     show_viewport()
     set_primary_window('primary', True)
     while is_dearpygui_running():
-        #midi_down_callback(midi, items)
         midi_retry_connection(midi, midi_status)
         render_dearpygui_frame()
     destroy_gui()
