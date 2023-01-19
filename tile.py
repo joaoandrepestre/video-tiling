@@ -113,7 +113,6 @@ def handle_midi_note_on(note: int, velocity: int) -> None:
 def render(midi: Midi):
     global midi_input
     tiles = setup_tiles()
-    fps = get_config(FRAMERATE_CONFIG)
 
     # subscribe to midid events
     midi.subscribe(MidiMessageType.NOTE_ON,
@@ -121,6 +120,7 @@ def render(midi: Midi):
 
     prev = 0
     while cv2.getWindowProperty('Tyler', cv2.WND_PROP_VISIBLE) >= 1:
+        fps = get_config(FRAMERATE_CONFIG)
 
         time_elapsed = time() - prev
         if (time_elapsed > 1.0 / fps):
