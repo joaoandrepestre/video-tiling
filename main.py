@@ -7,10 +7,7 @@ from gui import draw_gui
 def main():
     setup_config()
     midi = Midi()
-    gui_thread = threading.Thread(group=None, target=draw_gui, args=[midi])
-    gui_thread.start()
-
-    gui_thread.join()
+    draw_gui(midi)
     midi.destroy()
     teardown_config()
 
