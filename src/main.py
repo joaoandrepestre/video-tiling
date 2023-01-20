@@ -1,6 +1,6 @@
-from config import setup_config, teardown_config
-from midi import Midi
-from gui import draw_gui
+from config.config import setup_config, teardown_config
+from midi.midi import Midi
+from gui.gui_new import draw_gui
 
 
 def main():

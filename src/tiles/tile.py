@@ -3,10 +3,10 @@ from time import time
 import cv2
 import numpy as np
 import keyboard as kb
-from config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config, MIDI_CONFIG
-from landscape import Landscape
-from midi import Midi, MidiMessageType
-from section import Section
+from config.config import ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG, KEYBOARD_CONFIG, LANDSCAPE_NUM_CONFIG, PATH_CONFIG, get_config, MIDI_CONFIG
+from tiles.landscape import Landscape
+from midi.midi import Midi, MidiMessageType
+from tiles.section import Section
 
 
 class Tiles:
