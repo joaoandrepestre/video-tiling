@@ -13,7 +13,6 @@ class QStatusDisplay(QWidget):
     def __init__(self, true_text: str, false_text: str) -> None:
         super().__init__()
         hbox = QHBoxLayout()
-        hbox.setContentsMargins(10, 0, 450, 0)
         self.setLayout(hbox)
         label = QLabel('Status: ')
         self.__status_label = QLabel(self.__text_if_false)

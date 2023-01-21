@@ -12,7 +12,6 @@ class QSelectablesGrid(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.__grid = QGridLayout()
-        self.__grid.setContentsMargins(10, 0, 10, 0)
         self.setLayout(self.__grid)
 
     def addSelectable(self, text: str, row: int, column: int) -> QSquareButton:

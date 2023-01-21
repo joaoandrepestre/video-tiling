@@ -21,7 +21,7 @@ from config.config import (
     DEFAULT_CONFIG
 )
 
-WIDTH = 450
+WIDTH = 330
 HEIGHT = 600
 
 
@@ -173,8 +173,7 @@ class Window(QWidget):
             return
         default = DEFAULT_CONFIG[FRAMERATE_CONFIG]
         nfr = (value / 127.0) * default + default / 2.0
-        window.framerate_input.setText(f'{nfr}')
-        set_config(FRAMERATE_CONFIG, nfr)
+        window.framerate_input.setText('%.3f' % nfr)
 
     def __midi_note_handler(window: Window, note: int, velocity: int) -> None:
         selected_item, index = window.selectables_grid.selected()
