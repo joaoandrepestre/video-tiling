@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QWidget, QGridLayout, QPushButton
+from PyQt6.QtWidgets import QWidget, QGridLayout, QVBoxLayout, QLabel
 from gui.widgets.QSquareButton import QSquareButton
 
 
@@ -9,10 +9,14 @@ class QSelectablesGrid(QWidget):
     __selected: QSquareButton = None
     __selected_index: int = None
 
-    def __init__(self) -> None:
+    def __init__(self, title: str) -> None:
         super().__init__()
+        vbox = QVBoxLayout()
+        self.setLayout(vbox)
+        label = QLabel(title)
         self.__grid = QGridLayout()
-        self.setLayout(self.__grid)
+        vbox.addWidget(label)
+        vbox.addLayout(self.__grid)
 
     def addSelectable(self, text: str, row: int, column: int) -> QSquareButton:
         button = QSquareButton(text)

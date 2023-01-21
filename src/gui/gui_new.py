@@ -5,13 +5,13 @@ from threading import Thread
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QKeyEvent, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QVBoxLayout,
-    QLayout, QHBoxLayout, QLabel, QFileDialog
+    QApplication, QWidget, QPushButton, QVBoxLayout, QFileDialog
 )
 from gui.widgets.QSelectablesGrid import QSelectablesGrid
 from gui.widgets.QLabeledInput import QLabeledIntInput, QLabeledFloatInput
 from gui.widgets.QStatusDisplay import QStatusDisplay
 from gui.widgets.QTupleInput import QTupleInput
+from gui.widgets.QCollapsableSection import QCollapsableSection
 from midi.midi import Midi, MidiMessageType
 from tiles import tile as T
 from config.config import (
@@ -21,7 +21,7 @@ from config.config import (
     DEFAULT_CONFIG
 )
 
-WIDTH = 330
+WIDTH = 450
 HEIGHT = 600
 
 
@@ -59,17 +59,19 @@ class Window(QWidget):
         self.resize(WIDTH, HEIGHT)
         self.setLayout(self.__layout)
 
-        self.__layout.addWidget(QLabel('VIDEO'))
-        self.__layout.addWidget(
+        video_section = QCollapsableSection('VIDEO')
+        video_vbox = QVBoxLayout()
+        video_vbox.addWidget(
             QLabeledIntInput(
                 'Landscapes',
                 get_config(LANDSCAPE_NUM_CONFIG),
                 lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
             )
         )
-        self.__sources_button = self.add_button(
+        self.__sources_button = self.make_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
-        self.__layout.addWidget(
+        video_vbox.addWidget(self.__sources_button)
+        video_vbox.addWidget(
             QTupleInput('Aspect Ratio', 'Width', 'Height',
                         get_config(ASPECT_RATIO_CONFIG),
                         lambda x: set_config(ASPECT_RATIO_CONFIG, x)
@@ -80,17 +82,21 @@ class Window(QWidget):
             get_config(FRAMERATE_CONFIG),
             lambda x: set_config(FRAMERATE_CONFIG, x)
         )
-        self.__layout.addWidget(self.framerate_input)
+        video_vbox.addWidget(self.framerate_input)
+        video_section.setContentLayout(video_vbox)
+        self.__layout.addWidget(video_section)
+        video_section.check()
 
-        self.__layout.addWidget(QLabel('MIDI'))
-        self.__layout.addWidget(
+        midi_section = QCollapsableSection('MIDI')
+        midi_vbox = QVBoxLayout()
+        midi_vbox.addWidget(
             QLabeledIntInput(
                 'Midi Port',
                 get_config(MIDI_PORT_CONFIG),
                 lambda x: set_config(MIDI_PORT_CONFIG, x)
             )
         )
-        self.__layout.addWidget(
+        midi_vbox.addWidget(
             QLabeledIntInput(
                 'Framerate Knob',
                 get_config(KNOB_CONFIG),
@@ -98,26 +104,29 @@ class Window(QWidget):
             )
         )
         self.__midi_status = QStatusDisplay('Connected', 'Disconnected')
-        self.__layout.addWidget(self.__midi_status)
-        self.selectables_grid = self.add_controls_grid()
+        midi_vbox.addWidget(self.__midi_status)
+        self.selectables_grid = self.make_controls_grid()
+        midi_vbox.addWidget(self.selectables_grid)
+        midi_section.setContentLayout(midi_vbox)
+        self.__layout.addWidget(midi_section)
+        midi_section.check()
 
-        self.add_button('Start', self.__start_callback)
+        start = self.make_button('Start', self.__start_callback)
+        self.__layout.addWidget(start)
 
     def destroy(self):
         if (self.is_rendering()):
             self.__render_thread.join()
 
     # gui utils
-    def add_button(self, title: str, callback: Callable, parent: QLayout = None) -> QPushButton:
-        parent = self.__layout if parent is None else parent
+    def make_button(self, title: str, callback: Callable) -> QPushButton:
         button = QPushButton(title)
         button.clicked.connect(callback)
-        parent.addWidget(button)
         return button
 
-    def add_controls_grid(self) -> QSelectablesGrid:
-        label = QLabel('Define control for each section: (midi | keyboard)')
-        grid = QSelectablesGrid()
+    def make_controls_grid(self) -> QSelectablesGrid:
+        grid = QSelectablesGrid(
+            'Define control for each section: (midi | keyboard)')
         midi_map = get_config(MIDI_CONFIG)
         key_map = get_config(KEYBOARD_CONFIG)
         for i in range(len(midi_map)):
@@ -125,8 +134,6 @@ class Window(QWidget):
             column = int(i % 3)
             grid.addSelectable(f'{midi_map[i]} | {key_map[i]}',
                                row, column)
-        self.__layout.addWidget(label)
-        self.__layout.addWidget(grid)
         return grid
 
     def is_rendering(self) -> bool:
