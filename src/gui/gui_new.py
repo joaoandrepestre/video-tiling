@@ -11,11 +11,12 @@ from PyQt6.QtWidgets import (
 from gui.widgets.QSelectablesGrid import QSelectablesGrid
 from gui.widgets.QLabeledInput import QLabeledIntInput, QLabeledFloatInput
 from gui.widgets.QStatusDisplay import QStatusDisplay
+from gui.widgets.QTupleInput import QTupleInput
 from midi.midi import Midi, MidiMessageType
 from tiles import tile as T
 from config.config import (
     set_config, get_config,
-    LANDSCAPE_NUM_CONFIG, PATH_CONFIG, FRAMERATE_CONFIG,
+    LANDSCAPE_NUM_CONFIG, PATH_CONFIG, ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG,
     MIDI_PORT_CONFIG, KNOB_CONFIG, MIDI_CONFIG, KEYBOARD_CONFIG,
     DEFAULT_CONFIG
 )
@@ -39,7 +40,6 @@ class Window(QWidget):
 
     def __init__(self, midi: Midi) -> None:
         super().__init__()
-        self.__render_thread = Thread(target=T.render, args=[midi])
         self.__midi = midi
 
         # subscribe to midi events
@@ -63,15 +63,21 @@ class Window(QWidget):
         self.__layout.addWidget(
             QLabeledIntInput(
                 'Landscapes',
-                f'{get_config(LANDSCAPE_NUM_CONFIG)}',
+                get_config(LANDSCAPE_NUM_CONFIG),
                 lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
             )
         )
         self.__sources_button = self.add_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
+        self.__layout.addWidget(
+            QTupleInput('Aspect Ratio', 'Width', 'Height',
+                        get_config(ASPECT_RATIO_CONFIG),
+                        lambda x: set_config(ASPECT_RATIO_CONFIG, x)
+                        )
+        )
         self.framerate_input = QLabeledFloatInput(
             'Framerate',
-            f'{get_config(FRAMERATE_CONFIG)}',
+            get_config(FRAMERATE_CONFIG),
             lambda x: set_config(FRAMERATE_CONFIG, x)
         )
         self.__layout.addWidget(self.framerate_input)
@@ -80,14 +86,14 @@ class Window(QWidget):
         self.__layout.addWidget(
             QLabeledIntInput(
                 'Midi Port',
-                f'{get_config(MIDI_PORT_CONFIG)}',
+                get_config(MIDI_PORT_CONFIG),
                 lambda x: set_config(MIDI_PORT_CONFIG, x)
             )
         )
         self.__layout.addWidget(
             QLabeledIntInput(
                 'Framerate Knob',
-                f'{get_config(KNOB_CONFIG)}',
+                get_config(KNOB_CONFIG),
                 lambda x: set_config(KNOB_CONFIG, x)
             )
         )
@@ -96,6 +102,10 @@ class Window(QWidget):
         self.selectables_grid = self.add_controls_grid()
 
         self.add_button('Start', self.__start_callback)
+
+    def destroy(self):
+        if (self.is_rendering()):
+            self.__render_thread.join()
 
     # gui utils
     def add_button(self, title: str, callback: Callable, parent: QLayout = None) -> QPushButton:
@@ -120,11 +130,12 @@ class Window(QWidget):
         return grid
 
     def is_rendering(self) -> bool:
-        return self.__render_thread.is_alive()
+        return self.__render_thread is not None and self.__render_thread.is_alive()
 
     # callbacks
     def __start_callback(self) -> None:
         if (not self.is_rendering()):
+            self.__render_thread = Thread(target=T.render, args=[self.__midi])
             self.__render_thread.start()
 
     def __update_midi_status(self) -> None:
@@ -184,3 +195,4 @@ def draw_gui(midi: Midi):
     window = Window(midi)
     window.show()
     app.exec()
+    window.destroy()

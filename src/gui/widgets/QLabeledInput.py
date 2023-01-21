@@ -11,13 +11,14 @@ class QLabeledInput(QWidget, Generic[T]):
     _input: QLineEdit = None
     _callback: Callable[[T], None] = lambda: None
 
-    def __init__(self, title: str, default_value: str, callback: Callable[[T], None]):
+    def __init__(self, title: str, default_value: T, callback: Callable[[T], None]):
         super().__init__()
         hbox = QHBoxLayout()
         hbox.setContentsMargins(10, 0, 450, 0)
         self.setLayout(hbox)
         label = QLabel(title)
-        self._input = QLineEdit(default_value)
+        self._input = QLineEdit(f'{default_value}')
+        self._input.setMaximumWidth(50)
         self._callback = callback
         self._input.textChanged.connect(self.__encapsulated_callback)
         hbox.addWidget(label, alignment=Qt.AlignmentFlag.AlignLeft)
@@ -37,9 +38,8 @@ class QLabeledInput(QWidget, Generic[T]):
 
 
 class QLabeledIntInput(QLabeledInput[int]):
-    def __init__(self, title: str, default_value: str, callback: Callable[[int], None]):
+    def __init__(self, title: str, default_value: int, callback: Callable[[int], None]):
         super().__init__(title, default_value, callback)
-        self._input.setMaximumWidth(20)
         validator = QIntValidator()
         self._input.setValidator(validator)
 
@@ -51,9 +51,8 @@ class QLabeledIntInput(QLabeledInput[int]):
 
 
 class QLabeledFloatInput(QLabeledInput[float]):
-    def __init__(self, title: str, default_value: str, callback: Callable[[float], None]):
+    def __init__(self, title: str, default_value: float, callback: Callable[[float], None]):
         super().__init__(title, default_value, callback)
-        self._input.setMaximumWidth(50)
         validator = QDoubleValidator()
         validator.setDecimals(3)
         self._input.setValidator(validator)
