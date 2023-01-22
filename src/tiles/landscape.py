@@ -1,4 +1,4 @@
-from section import Section
+from tiles.section import Section
 from ffpyplayer.player import MediaPlayer
 
 

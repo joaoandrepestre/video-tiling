@@ -14,7 +14,6 @@ FRAMERATE_CONFIG = 'framerate'
 MIDI_PORT_CONFIG = 'midi_port'
 MIDI_CONFIG = 'midi_map'
 KEYBOARD_CONFIG = 'key_map'
-KNOB_CONFIG = 'knob'
 
 DEFAULT_CONFIG = {
     "landscape_num": 6,
@@ -24,7 +23,6 @@ DEFAULT_CONFIG = {
     "midi_port": 0,
     "midi_map": ["48", "49", "50", "44", "45", "46"],
     "key_map": ["4", "5", "6", "1", "2", "3"],
-    "knob": 2
 }
 
 cache: dict = dict()
