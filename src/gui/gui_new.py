@@ -17,8 +17,7 @@ from tiles import tile as T
 from config.config import (
     set_config, get_config,
     LANDSCAPE_NUM_CONFIG, PATH_CONFIG, ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG,
-    MIDI_PORT_CONFIG, KNOB_CONFIG, MIDI_CONFIG, KEYBOARD_CONFIG,
-    DEFAULT_CONFIG
+    MIDI_PORT_CONFIG, MIDI_CONFIG, KEYBOARD_CONFIG
 )
 
 WIDTH = 450
@@ -40,13 +39,12 @@ class Window(QWidget):
 
     def __init__(self, midi: Midi) -> None:
         super().__init__()
+        self.move(50, 5)
         self.__midi = midi
 
         # subscribe to midi events
-        midi.subscribe(MidiMessageType.CONTROL_CHANGE,
-                       lambda knob, value: Window.__midi_knob_handler(self, knob, value))
         midi.subscribe(MidiMessageType.NOTE_ON,
-                       lambda note, velocity: Window.__midi_note_handler(self, note, velocity))
+                       lambda note, velocity: self.__midi_note_handler(note, velocity))
 
         # set connection checking timer
         self.__timer = QTimer(self)
@@ -56,29 +54,33 @@ class Window(QWidget):
         # draw gui
         self.setWindowIcon(QIcon('./statics/tile-icon.ico'))
         self.setWindowTitle('Tyler - Config')
-        self.resize(WIDTH, HEIGHT)
+        self.setMaximumWidth(WIDTH)
+        self.setMaximumHeight(HEIGHT)
         self.setLayout(self.__layout)
 
         video_section = QCollapsableSection('VIDEO')
         video_vbox = QVBoxLayout()
         video_vbox.addWidget(
             QLabeledIntInput(
+                midi,
                 'Landscapes',
-                get_config(LANDSCAPE_NUM_CONFIG),
-                lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
+                default_value=get_config(LANDSCAPE_NUM_CONFIG),
+                callback=lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
             )
         )
         self.__sources_button = self.make_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
         video_vbox.addWidget(self.__sources_button)
         video_vbox.addWidget(
-            QTupleInput('Aspect Ratio', 'Width', 'Height',
+            QTupleInput(midi, 'Aspect Ratio', 'Width', 'Height',
                         get_config(ASPECT_RATIO_CONFIG),
                         lambda x: set_config(ASPECT_RATIO_CONFIG, x)
                         )
         )
         self.framerate_input = QLabeledFloatInput(
+            midi,
             'Framerate',
+            11, 33,
             get_config(FRAMERATE_CONFIG),
             lambda x: set_config(FRAMERATE_CONFIG, x)
         )
@@ -91,16 +93,10 @@ class Window(QWidget):
         midi_vbox = QVBoxLayout()
         midi_vbox.addWidget(
             QLabeledIntInput(
+                midi,
                 'Midi Port',
-                get_config(MIDI_PORT_CONFIG),
-                lambda x: set_config(MIDI_PORT_CONFIG, x)
-            )
-        )
-        midi_vbox.addWidget(
-            QLabeledIntInput(
-                'Framerate Knob',
-                get_config(KNOB_CONFIG),
-                lambda x: set_config(KNOB_CONFIG, x)
+                default_value=get_config(MIDI_PORT_CONFIG),
+                callback=lambda x: set_config(MIDI_PORT_CONFIG, x)
             )
         )
         self.__midi_status = QStatusDisplay('Connected', 'Disconnected')
@@ -172,18 +168,8 @@ class Window(QWidget):
         selected_item.setText(f'{midi_map[index]} | {key_map[index]}')
         self.selectables_grid.cleanSelection()
 
-    def __midi_knob_handler(window: Window, knob: int, value: int) -> None:
-        knob_config = get_config(KNOB_CONFIG)
-        if (window.framerate_input is None):
-            return
-        if (knob != knob_config):
-            return
-        default = DEFAULT_CONFIG[FRAMERATE_CONFIG]
-        nfr = (value / 127.0) * default + default / 2.0
-        window.framerate_input.setText('%.3f' % nfr)
-
-    def __midi_note_handler(window: Window, note: int, velocity: int) -> None:
-        selected_item, index = window.selectables_grid.selected()
+    def __midi_note_handler(self, note: int, velocity: int) -> None:
+        selected_item, index = self.selectables_grid.selected()
         if (selected_item is None):
             return
         if (velocity == 0):
@@ -193,7 +179,7 @@ class Window(QWidget):
         midi_map[index] = f'{note}'
         set_config(MIDI_CONFIG, midi_map)
         selected_item.setText(f'{midi_map[index]} | {key_map[index]}')
-        window.selectables_grid.cleanSelection()
+        self.selectables_grid.cleanSelection()
 
 
 def draw_gui(midi: Midi):

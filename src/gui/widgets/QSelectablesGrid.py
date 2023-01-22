@@ -19,7 +19,7 @@ class QSelectablesGrid(QWidget):
         vbox.addLayout(self.__grid)
 
     def addSelectable(self, text: str, row: int, column: int) -> QSquareButton:
-        button = QSquareButton(text)
+        button = QSquareButton(text, 75)
         button.setCheckable(True)
         button.clicked.connect(self.__select)
         self.__grid.addWidget(button, row, column)

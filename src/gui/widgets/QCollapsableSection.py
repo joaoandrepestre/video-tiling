@@ -5,6 +5,8 @@ from PyQt6.QtCore import Qt, QParallelAnimationGroup, QPropertyAnimation, QAbstr
 class QCollapsableSection(QWidget):
     def __init__(self, title: str):
         super().__init__()
+        self.setMaximumHeight(300)
+
         self.toggle_button = QToolButton()
         self.toggle_button.setText(title)
         self.toggle_button.setCheckable(True)

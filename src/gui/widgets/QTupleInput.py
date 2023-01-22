@@ -1,6 +1,7 @@
 from typing import Callable
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
 from gui.widgets.QLabeledInput import QLabeledIntInput
+from midi.midi import Midi
 
 
 class QTupleInput(QWidget):
@@ -10,23 +11,28 @@ class QTupleInput(QWidget):
     __callback: Callable[[tuple[int, int]], None] = lambda: None
     __value: tuple[int, int] = None
 
-    def __init__(self, main_title: str, first_title: str, second_title: str,
+    def __init__(self, midi: Midi, main_title: str, first_title: str, second_title: str,
                  default_value: tuple[int, int] = None, callback: Callable[[tuple[int, int]], None] = lambda: None):
         super().__init__()
+        self.setMaximumHeight(150)
         vbox = QVBoxLayout()
         self.setLayout(vbox)
         label = QLabel(main_title)
         self.__callback = callback
         self.__value = default_value
         self.__first_input = QLabeledIntInput(
+            midi,
             first_title,
-            default_value[0],
-            lambda x: self.__first_callback(x)
+            140, 1080,
+            default_value=default_value[0],
+            callback=lambda x: self.__first_callback(x)
         )
         self.__second_input = QLabeledIntInput(
+            midi,
             second_title,
-            default_value[1],
-            lambda x: self.__second_callback(x)
+            140, 1080,
+            default_value=default_value[1],
+            callback=lambda x: self.__second_callback(x)
         )
         vbox.addWidget(label)
         vbox.addWidget(self.__first_input)
