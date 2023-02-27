@@ -6,11 +6,11 @@ block_cipher = None
 
 
 a = Analysis(
-    ['src\\main.py'],
-    pathex=['.', '.\\src', '.\\venv\\Lib\\site-packages'],
+    ['src/main.py'],
+    pathex=['.', './src', './venv/Lib/site-packages'],
     binaries=[
-        (f'{FFPYPLAYER_PATH}\\*.pyd', 'ffpyplayer'),
-        (f'{FFPYPLAYER_PATH}\\player\\*.pyd', 'ffpyplayer/player'),
+        (f'{FFPYPLAYER_PATH}/*.pyd', 'ffpyplayer'),
+        (f'{FFPYPLAYER_PATH}/player/*.pyd', 'ffpyplayer/player'),
     ],
     datas=[('statics', 'statics')],
     hiddenimports=[
@@ -38,6 +38,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='Tyler',
+    icon='statics/tile-icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -63,6 +64,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='Tyler.app',
-    icon='statics\\tile-icon.ico',
+    icon='statics/tile-icon.ico',
     bundle_identifier=None,
 )
