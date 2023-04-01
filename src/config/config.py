@@ -18,7 +18,7 @@ KEYBOARD_CONFIG = 'key_map'
 DEFAULT_CONFIG = {
     "landscape_num": 6,
     "sources": "",
-    "aspect_ratio": (1080, 1080),
+    "aspect_ratio": (340, 382),
     "framerate": 23.976,
     "midi_port": 0,
     "midi_map": ["48", "49", "50", "44", "45", "46"],
