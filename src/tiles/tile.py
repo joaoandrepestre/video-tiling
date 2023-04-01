@@ -9,6 +9,55 @@ from midi.midi import Midi, MidiMessageType
 from tiles.section import Section
 
 
+def resizeAndPadImage(img, padColor=0):
+    h, w = img.shape[:2]
+    (_, _, sw, sh) = cv2.getWindowImageRect('Tyler')
+
+    if (h == sh and w == sw):
+        return img
+
+    # interpolation method
+    if h > sh or w > sw:  # shrinking image
+        interp = cv2.INTER_AREA
+    else:  # stretching image
+        interp = cv2.INTER_CUBIC
+
+    # aspect ratio of image
+    aspect = w/h
+    w_aspect = sw/sh
+
+    # compute scaling and pad sizing
+    if aspect > w_aspect:  # horizontal image
+        new_w = sw
+        new_h = np.round(new_w/aspect).astype(int)
+        pad_vert = (sh-new_h)/2
+        pad_top, pad_bot = np.floor(pad_vert).astype(
+            int), np.ceil(pad_vert).astype(int)
+        pad_left, pad_right = 0, 0
+    elif aspect < w_aspect:  # vertical image
+        new_h = sh
+        new_w = np.round(new_h*aspect).astype(int)
+        pad_horz = (sw-new_w)/2
+        pad_left, pad_right = np.floor(pad_horz).astype(
+            int), np.ceil(pad_horz).astype(int)
+        pad_top, pad_bot = 0, 0
+    else:  # square image
+        new_h, new_w = sh, sw
+        pad_left, pad_right, pad_top, pad_bot = 0, 0, 0, 0
+
+    # set pad color
+    # color image but only one color provided
+    if len(img.shape) == 3 and not isinstance(padColor, (list, tuple, np.ndarray)):
+        padColor = [padColor]*3
+
+    # scale and pad
+    scaled_img = cv2.resize(img, (new_w, new_h), interpolation=interp)
+    scaled_img = cv2.copyMakeBorder(
+        scaled_img, pad_top, pad_bot, pad_left, pad_right, borderType=cv2.BORDER_CONSTANT, value=padColor)
+
+    return scaled_img
+
+
 class Tiles:
 
     def __init__(self, paths: list[str]) -> None:
@@ -45,6 +94,8 @@ class Tiles:
         l0 = np.hstack(tuple(imgs[:3]))
         l1 = np.hstack(tuple(imgs[3:]))
         out = np.vstack((l0, l1))
+
+        out = resizeAndPadImage(out)
 
         cv2.imshow('Tyler', out)
 
