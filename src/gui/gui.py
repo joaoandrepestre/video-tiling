@@ -5,7 +5,8 @@ from threading import Thread
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QKeyEvent, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QVBoxLayout, QFileDialog
+    QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QCheckBox,
+    QProgressBar
 )
 from gui.widgets.QSelectablesGrid import QSelectablesGrid
 from gui.widgets.QLabeledInput import QLabeledIntInput, QLabeledFloatInput
@@ -19,6 +20,7 @@ from config.config import (
     LANDSCAPE_NUM_CONFIG, PATH_CONFIG, ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG,
     MIDI_PORT_CONFIG, MIDI_CONFIG, KEYBOARD_CONFIG
 )
+from utils.video_utils import process_videos
 
 WIDTH = 450
 HEIGHT = 600
@@ -68,6 +70,15 @@ class Window(QWidget):
                 callback=lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
             )
         )
+        self.__should_crop_videos: bool = False
+        hbox = QHBoxLayout()
+        checkbox = self.make_checkbox(
+            'Crop videos?', self.__checkbox_callback)
+        self.__progress = QProgressBar()
+        self.__progress.setHidden(True)
+        hbox.addWidget(checkbox)
+        hbox.addWidget(self.__progress)
+        video_vbox.addLayout(hbox)
         self.__sources_button = self.make_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
         video_vbox.addWidget(self.__sources_button)
@@ -132,6 +143,12 @@ class Window(QWidget):
                                row, column)
         return grid
 
+    def make_checkbox(self, title: str, callback: Callable) -> QCheckBox:
+        checkbox = QCheckBox()
+        checkbox.setText(title)
+        checkbox.toggled.connect(callback)
+        return checkbox
+
     def is_rendering(self) -> bool:
         return self.__render_thread is not None and self.__render_thread.is_alive()
 
@@ -152,6 +169,12 @@ class Window(QWidget):
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
         set_config(PATH_CONFIG, dir)
         self.__sources_button.setText(f'Select sources: {dir}')
+        if (self.__should_crop_videos):
+            process_videos(dir, self.__progress)
+
+    def __checkbox_callback(self) -> None:
+        self.__should_crop_videos = self.sender().isChecked()
+        self.__progress.setHidden(not self.__should_crop_videos)
 
     def keyPressEvent(self, e: QKeyEvent):
         selected_item, index = self.selectables_grid.selected()
