@@ -5,14 +5,14 @@ from threading import Thread
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QKeyEvent, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QCheckBox,
-    QProgressBar
+    QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QCheckBox
 )
 from gui.widgets.QSelectablesGrid import QSelectablesGrid
 from gui.widgets.QLabeledInput import QLabeledIntInput, QLabeledFloatInput
 from gui.widgets.QStatusDisplay import QStatusDisplay
 from gui.widgets.QTupleInput import QTupleInput
 from gui.widgets.QCollapsableSection import QCollapsableSection
+from gui.widgets.QMultiProgress import QMultiProgress
 from midi.midi import Midi, MidiMessageType
 from tiles import tile as T
 from config.config import (
@@ -74,7 +74,8 @@ class Window(QWidget):
         hbox = QHBoxLayout()
         checkbox = self.make_checkbox(
             'Crop videos?', self.__checkbox_callback)
-        self.__progress = QProgressBar()
+        self.__progress = QMultiProgress(
+            0, lambda args: process_videos(args[0]))
         self.__progress.setHidden(True)
         hbox.addWidget(checkbox)
         hbox.addWidget(self.__progress)
@@ -170,11 +171,11 @@ class Window(QWidget):
         set_config(PATH_CONFIG, dir)
         self.__sources_button.setText(f'Select sources: {dir}')
         if (self.__should_crop_videos):
-            process_videos(dir, self.__progress)
+            self.__progress.start(dir)
 
     def __checkbox_callback(self) -> None:
         self.__should_crop_videos = self.sender().isChecked()
-        self.__progress.setHidden(not self.__should_crop_videos)
+        #self.__progress.setHidden(not self.__should_crop_videos)
 
     def keyPressEvent(self, e: QKeyEvent):
         selected_item, index = self.selectables_grid.selected()

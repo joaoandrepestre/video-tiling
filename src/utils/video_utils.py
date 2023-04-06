@@ -1,9 +1,16 @@
+from typing import Generator
 from os import listdir, path, mkdir
 import cv2
-from PyQt6.QtWidgets import QProgressBar
+
+SUPPORTED_TYPES = ['mp4']
 
 
-def video_crop(video_path: str, video_index: int, out_dir: str, progress: QProgressBar):
+def check_video_type(filename: str) -> bool:
+    ext = filename.split('.')[-1]
+    return ext in SUPPORTED_TYPES
+
+
+def video_crop(video_path: str, video_index: int, out_dir: str) -> Generator[int, None, None]:
     cap = cv2.VideoCapture(video_path)
 
     cnt = 0
@@ -31,8 +38,7 @@ def video_crop(video_path: str, video_index: int, out_dir: str, progress: QProgr
             break
 
         xx = int(cnt * 100 / frames)
-        progress.setValue(xx)
-        print(f'{int(xx)}%')
+        yield xx
 
         for (x, y, out) in sections:
             crop_frame = frame[y:y+h, x:x+w]
@@ -45,15 +51,22 @@ def video_crop(video_path: str, video_index: int, out_dir: str, progress: QProgr
     cv2.destroyAllWindows()
 
 
-def process_videos(srcs_dir: str, progress: QProgressBar):
+def process_videos(srcs_dir: str) -> Generator[tuple[int, int], None, None]:
     out_dir = f'{srcs_dir}/.out'
+    videos = list(filter(check_video_type, listdir(srcs_dir)))
+    total = len(videos)
+    yield (0, total)
 
     # already processed
     if path.exists(out_dir):
+        yield (100, total)
         return
 
     mkdir(out_dir)
-    videos = list(filter(lambda s: not s.startswith('.'), listdir(srcs_dir)))
-    for i in range(len(videos)):
+    count = 0
+    for i in range(total):
         video_path = f'{srcs_dir}/{videos[i]}'
-        video_crop(video_path, i, out_dir, progress)
+        for pct in video_crop(video_path, i, out_dir):
+            yield (pct, count)
+        count += 1
+        yield (pct, count)

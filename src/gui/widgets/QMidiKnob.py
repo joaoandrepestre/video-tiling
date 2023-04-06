@@ -1,7 +1,8 @@
+from typing import Callable
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QDial
 from PyQt6.QtCore import QObject, QEvent
 from PyQt6.QtGui import QMouseEvent
-from midi.midi import *
+from midi.midi import Midi, MidiMessageType
 
 
 class QMidiKnob(QWidget):
