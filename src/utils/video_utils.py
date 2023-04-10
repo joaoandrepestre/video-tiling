@@ -65,7 +65,7 @@ class VideoWriter:
 
 def crop_frame(frame) -> list:
     h_frame, w_frame, _ = frame.shape
-    h, w = int(h_frame / 2), int(w_frame / 3)
+    h, w = int(h_frame / 2) - 1, int(w_frame / 3) - 1
     sections = []
     for i in range(6):
         x, y = (i % 3)*w, (i // 3)*h
@@ -120,9 +120,8 @@ def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[
         xx = int(cnt * 100 / frames)
         yield xx
 
-        # check AR
-        if (w_frame != shape[0] or h_frame != shape[1]):
-            frame = reshape(frame, shape)
+        # resize when needed
+        frame = reshape(frame, shape)
 
         # crop video
         if (crop):
