@@ -5,6 +5,7 @@ import time
 
 
 class Tracker(QObject):
+    finished = pyqtSignal()
     initValues = pyqtSignal(tuple)
     updateValues = pyqtSignal(tuple)
 
@@ -24,6 +25,7 @@ class Tracker(QObject):
             curr_time = time.time()
             elapsed = int(curr_time - start_time)
             self.updateValues.emit((amnt, cnt, elapsed))
+        self.finished.emit()
 
 
 class QMultiProgress(QWidget):
@@ -51,7 +53,8 @@ class QMultiProgress(QWidget):
 
         self.__tracker = Tracker(func)
         self.__tracker.moveToThread(self.__tracking_thread)
-        self.__tracking_thread.finished.connect(self.__tracker.deleteLater)
+        self.__tracker.finished.connect(self.__tracking_thread.quit)
+        self.__tracking_thread.finished.connect(self.finish)
         self.start.connect(self.__tracker.doTracking)
         self.__tracker.initValues.connect(self.initValues)
         self.__tracker.updateValues.connect(self.update)
@@ -127,3 +130,13 @@ class QMultiProgress(QWidget):
             eta = int(unit_time * remaining)
 
         self.setETA(eta)
+
+    def finish(self):
+        self.__tracker.deleteLater()
+
+        # hide progress
+        self.__progress_bar.setHidden(True)
+        self.__counter_label.setHidden(True)
+
+        # Write DONE
+        self.__eta_label.setText('Time remaining: DONE!')

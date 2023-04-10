@@ -141,26 +141,14 @@ def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[
     writer.release()
 
 
-def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int, Any], None, None]:
+def process_videos(srcs_dir: str, auto_crop: bool, skip: bool) -> Generator[tuple[int, int, Any], None, None]:
     # filter out unsopported file formats
     videos = list(filter(check_video_type, listdir(srcs_dir)))
 
     # get total number of supported videos in srcs_dir
     total = len(videos)
 
-    # if an out_dir already exists, assume we are done and stop processing
-    # TODO: how we check if processing is done
-    out_dir = f'{srcs_dir}/.out'
-    if path.exists(out_dir):
-        yield (100, total)
-        return
-
-    # begin processing
-
-    # make output directory
-    mkdir(out_dir)
-
-    # find "correct" aspect ratio
+    # find metadata
     aspects = []
     frame_counts = []
     min_fps = 100
@@ -188,14 +176,30 @@ def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int, 
 
     # send initial metadata
     metadata = {
-        'total': total,
+        'total': total if auto_crop else int(total / 6),
         'frame_counts': frame_counts,
-        'shape': shape,
+        'shape': shape if auto_crop else [3 * shape[0], 2 * shape[1]],
         'fps': min_fps
     }
     yield (0, total, metadata)
 
-    # crop videos into 6 quadrants
+    # begin processing
+    if (skip):
+        yield (100, total)
+        return
+
+    # if an out_dir already exists, assume we are done and stop processing
+    # TODO: how we check if processing is done
+    out_dir = f'{srcs_dir}/.out'
+    if path.exists(out_dir):
+        yield (100, total)
+        return
+
+    # make output directory
+    mkdir(out_dir)
+
+    # process each video
+    # TODO: paralel processing -> maybe 1 thread per video ?
     count = 0
     for i in range(total):
         video_path = f'{srcs_dir}/{videos[i]}'

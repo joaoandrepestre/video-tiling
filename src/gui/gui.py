@@ -84,8 +84,11 @@ class Window(QWidget):
             'Crop videos?', lambda: self.__checkbox_callback('crop'))
         skip_checkbox = self.make_checkbox(
             'Skip pre-processing?', lambda: self.__checkbox_callback('skip'), True)
-        self.__progress = QMultiProgress(self,
-                                         0, lambda args: process_videos(args, self.__processing_config['crop']))
+        self.__progress = QMultiProgress(self, 0,
+                                         lambda args: process_videos(args,
+                                                                     self.__processing_config['crop'],
+                                                                     self.__processing_config['skip'])
+                                         )
         self.__progress.setHidden(True)
         video_vbox.addWidget(crop_checkbox)
         video_vbox.addWidget(skip_checkbox)
@@ -190,8 +193,6 @@ class Window(QWidget):
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
         set_config(PATH_CONFIG, dir)
         self.__sources_button.setText(f'Select sources: {dir}')
-        if (self.__processing_config['skip']):
-            return
         self.__progress.start.emit(dir)
 
     def __checkbox_callback(self, field: str) -> None:
