@@ -42,8 +42,11 @@ class QMultiProgress(QWidget):
     __tracking_thread: QThread = QThread()
     __tracker: Tracker = None
 
-    def __init__(self, total: int = 0, func: Callable[[Any], Generator[tuple[int, int], None, None]] = None) -> None:
+    __window: QWidget = None
+
+    def __init__(self, window: QWidget, total: int = 0, func: Callable[[Any], Generator[tuple[int, int], None, None]] = None) -> None:
         super().__init__()
+        self.__window = window
         self.__total = total
 
         self.__tracker = Tracker(func)
@@ -77,10 +80,11 @@ class QMultiProgress(QWidget):
         self.__counter_label.setText(f'{self.__count}/{self.__total}')
 
     def initValues(self, values: tuple[int, int, list[int]]):
-        _, total, amounts = values
+        _, total, metadata = values
         self.setHidden(False)
         self.setTotal(total)
-        self.__amount_per_subprocess = amounts
+        self.__amount_per_subprocess = metadata['frame_counts']
+        self.__window.metadata.emit(metadata)
 
     def setValue(self, value: int) -> None:
         self.__progress_bar.setValue(value)

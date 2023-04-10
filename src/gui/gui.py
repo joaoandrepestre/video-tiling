@@ -2,7 +2,7 @@ from __future__ import annotations
 import sys
 from typing import Callable
 from threading import Thread
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QKeyEvent, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QCheckBox
@@ -27,6 +27,7 @@ HEIGHT = 600
 
 
 class Window(QWidget):
+    metadata = pyqtSignal(dict)
 
     # rendering
     __render_thread: Thread = None
@@ -36,6 +37,9 @@ class Window(QWidget):
     # gui layout
     __layout: QVBoxLayout = QVBoxLayout()
     __midi_status: QStatusDisplay = None
+
+    __landscapes: QLabeledIntInput = None
+    __aspect_ratio: QTupleInput = None
 
     __timer: QTimer = None
 
@@ -53,6 +57,8 @@ class Window(QWidget):
         self.__timer.timeout.connect(self.__update_midi_status)
         self.__timer.start(1000)
 
+        self.metadata.connect(self.set_metadata)
+
         # draw gui
         self.setWindowIcon(QIcon('./statics/tile-icon.ico'))
         self.setWindowTitle('Tyler - Config')
@@ -62,14 +68,13 @@ class Window(QWidget):
 
         video_section = QCollapsableSection('VIDEO')
         video_vbox = QVBoxLayout()
-        video_vbox.addWidget(
-            QLabeledIntInput(
-                midi,
-                'Landscapes',
-                default_value=get_config(LANDSCAPE_NUM_CONFIG),
-                callback=lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
-            )
+        self.__landscapes = QLabeledIntInput(
+            midi,
+            'Landscapes',
+            default_value=get_config(LANDSCAPE_NUM_CONFIG),
+            callback=lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
         )
+        video_vbox.addWidget(self.__landscapes)
 
         self.__processing_config: dict[str, bool] = {
             'crop': False,
@@ -79,8 +84,8 @@ class Window(QWidget):
             'Crop videos?', lambda: self.__checkbox_callback('crop'))
         skip_checkbox = self.make_checkbox(
             'Skip pre-processing?', lambda: self.__checkbox_callback('skip'), True)
-        self.__progress = QMultiProgress(
-            0, lambda args: process_videos(args, self.__processing_config['crop']))
+        self.__progress = QMultiProgress(self,
+                                         0, lambda args: process_videos(args, self.__processing_config['crop']))
         self.__progress.setHidden(True)
         video_vbox.addWidget(crop_checkbox)
         video_vbox.addWidget(skip_checkbox)
@@ -89,12 +94,12 @@ class Window(QWidget):
         self.__sources_button = self.make_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
         video_vbox.addWidget(self.__sources_button)
-        video_vbox.addWidget(
-            QTupleInput(midi, 'Aspect Ratio', 'Width', 'Height',
-                        get_config(ASPECT_RATIO_CONFIG),
-                        lambda x: set_config(ASPECT_RATIO_CONFIG, x)
-                        )
-        )
+        self.__aspect_ratio = QTupleInput(midi, 'Aspect Ratio', 'Width', 'Height',
+                                          get_config(ASPECT_RATIO_CONFIG),
+                                          lambda x: set_config(
+                                              ASPECT_RATIO_CONFIG, x)
+                                          )
+        video_vbox.addWidget(self.__aspect_ratio)
         self.framerate_input = QLabeledFloatInput(
             midi,
             'Framerate',
@@ -131,6 +136,13 @@ class Window(QWidget):
     def destroy(self):
         if (self.is_rendering()):
             self.__render_thread.join()
+
+    def set_metadata(self, metadata: dict) -> None:
+        self.__landscapes.setText(f'{metadata["total"]}')
+        self.framerate_input.setText(f'{metadata["fps"]}')
+        w_shape, h_shape = metadata['shape']
+        h, w = int(h_shape / 2) - 1, int(w_shape / 3) - 1
+        self.__aspect_ratio.setValue((w, h))
 
     # gui utils
     def make_button(self, title: str, callback: Callable) -> QPushButton:

@@ -45,3 +45,7 @@ class QTupleInput(QWidget):
     def __second_callback(self, value: int):
         self.__value[1] = value
         self.__callback(self.__value)
+
+    def setValue(self, value: tuple[int, int]):
+        self.__first_input.setText(f'{value[0]}')
+        self.__second_input.setText(f'{value[1]}')

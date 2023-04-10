@@ -73,19 +73,25 @@ def crop_frame(frame) -> list:
     return sections
 
 
+def transformShape(shape: tuple[int, int], ar: float):
+    w, h = shape
+    old_ar = w / h
+
+    new_shape = [w, h]
+    if old_ar > ar:  # horizontal image
+        new_shape[0] = int(h * ar)
+    elif old_ar < ar:  # vertical image
+        new_shape[1] = int(w / ar)
+    return new_shape
+
+
 def reshape(frame, shape: tuple[int, int]):
     h_frame, w_frame, _ = frame.shape
     w_shape, h_shape = shape
 
-    AR = w_frame / h_frame
     AR_shape = w_shape / h_shape
 
-    new_shape = [w_frame, h_frame]
-
-    if AR > AR_shape:  # horizontal image
-        new_shape[0] = int(h_frame * AR_shape)
-    elif AR < AR_shape:  # vertical image
-        new_shape[1] = int(w_frame / AR_shape)
+    new_shape = transformShape((w_frame, h_frame), AR_shape)
 
     return cv2.resize(frame, new_shape)
 
@@ -158,6 +164,7 @@ def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int, 
     aspects = []
     frame_counts = []
     min_fps = 100
+    max_shape = (0, 0)
     for i in range(total):
         video_path = f'{srcs_dir}/{videos[i]}'
         cap = cv2.VideoCapture(video_path)
@@ -167,15 +174,26 @@ def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int, 
         fps, frames = cap.get(cv2.CAP_PROP_FPS), cap.get(
             cv2.CAP_PROP_FRAME_COUNT)
 
+        if (w > max_shape[0] or h > max_shape[1]):
+            max_shape = (w, h)
         min_fps = min(min_fps, fps)
         aspects.append((w, h))
         frame_counts.append(frames)
 
         cap.release()
-    shape = mode(aspects)
+
+    common_shape = mode(aspects)
+    target_ar = common_shape[0] / common_shape[1]
+    shape = transformShape(max_shape, target_ar)
 
     # send initial metadata
-    yield (0, total, frame_counts)
+    metadata = {
+        'total': total,
+        'frame_counts': frame_counts,
+        'shape': shape,
+        'fps': min_fps
+    }
+    yield (0, total, metadata)
 
     # crop videos into 6 quadrants
     count = 0
