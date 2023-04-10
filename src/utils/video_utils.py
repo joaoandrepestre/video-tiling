@@ -1,4 +1,4 @@
-from typing import Generator
+from typing import Generator, Any
 from os import listdir, path, mkdir
 import cv2
 from statistics import mode
@@ -118,7 +118,7 @@ def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[
         # compute how much is done
         cnt += 1
         xx = int(cnt * 100 / frames)
-        yield xx
+        yield cnt
 
         # resize when needed
         frame = reshape(frame, shape)
@@ -135,13 +135,12 @@ def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[
     writer.release()
 
 
-def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int], None, None]:
+def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int, Any], None, None]:
     # filter out unsopported file formats
     videos = list(filter(check_video_type, listdir(srcs_dir)))
 
-    # send out total number of supported videos in srcs_dir
+    # get total number of supported videos in srcs_dir
     total = len(videos)
-    yield (0, total)
 
     # if an out_dir already exists, assume we are done and stop processing
     # TODO: how we check if processing is done
@@ -156,24 +155,33 @@ def process_videos(srcs_dir: str, auto_crop: bool) -> Generator[tuple[int, int],
     mkdir(out_dir)
 
     # find "correct" aspect ratio
-    metadata = []
+    aspects = []
+    frame_counts = []
     min_fps = 100
     for i in range(total):
         video_path = f'{srcs_dir}/{videos[i]}'
         cap = cv2.VideoCapture(video_path)
+
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(
             cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
+        fps, frames = cap.get(cv2.CAP_PROP_FPS), cap.get(
+            cv2.CAP_PROP_FRAME_COUNT)
+
         min_fps = min(min_fps, fps)
-        metadata.append((w, h))
+        aspects.append((w, h))
+        frame_counts.append(frames)
+
         cap.release()
-    shape = mode(metadata)
+    shape = mode(aspects)
+
+    # send initial metadata
+    yield (0, total, frame_counts)
 
     # crop videos into 6 quadrants
     count = 0
     for i in range(total):
         video_path = f'{srcs_dir}/{videos[i]}'
-        for pct in process_video(video_path, i, out_dir, shape, min_fps, auto_crop):
-            yield (pct, count)
+        for frame in process_video(video_path, i, out_dir, shape, min_fps, auto_crop):
+            yield (frame, count)
         count += 1
-        yield (pct, count)
+        yield (frame, count)
