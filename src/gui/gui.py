@@ -75,7 +75,7 @@ class Window(QWidget):
         checkbox = self.make_checkbox(
             'Crop videos?', self.__checkbox_callback)
         self.__progress = QMultiProgress(
-            0, lambda args: process_videos(args[0], self.__should_crop_videos))
+            0, lambda args: process_videos(args, self.__should_crop_videos))
         self.__progress.setHidden(True)
         hbox.addWidget(checkbox)
         hbox.addWidget(self.__progress)
@@ -170,7 +170,7 @@ class Window(QWidget):
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
         set_config(PATH_CONFIG, dir)
         self.__sources_button.setText(f'Select sources: {dir}')
-        self.__progress.start(dir)
+        self.__progress.start.emit(dir)
 
     def __checkbox_callback(self) -> None:
         self.__should_crop_videos = self.sender().isChecked()
