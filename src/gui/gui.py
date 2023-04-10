@@ -70,16 +70,22 @@ class Window(QWidget):
                 callback=lambda x: set_config(LANDSCAPE_NUM_CONFIG, x)
             )
         )
-        self.__should_crop_videos: bool = False
-        hbox = QHBoxLayout()
-        checkbox = self.make_checkbox(
-            'Crop videos?', self.__checkbox_callback)
+
+        self.__processing_config: dict[str, bool] = {
+            'crop': False,
+            'skip': True
+        }
+        crop_checkbox = self.make_checkbox(
+            'Crop videos?', lambda: self.__checkbox_callback('crop'))
+        skip_checkbox = self.make_checkbox(
+            'Skip pre-processing?', lambda: self.__checkbox_callback('skip'), True)
         self.__progress = QMultiProgress(
-            0, lambda args: process_videos(args, self.__should_crop_videos))
+            0, lambda args: process_videos(args, self.__processing_config['crop']))
         self.__progress.setHidden(True)
-        hbox.addWidget(checkbox)
-        hbox.addWidget(self.__progress)
-        video_vbox.addLayout(hbox)
+        video_vbox.addWidget(crop_checkbox)
+        video_vbox.addWidget(skip_checkbox)
+        video_vbox.addWidget(self.__progress)
+
         self.__sources_button = self.make_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
         video_vbox.addWidget(self.__sources_button)
@@ -144,9 +150,11 @@ class Window(QWidget):
                                row, column)
         return grid
 
-    def make_checkbox(self, title: str, callback: Callable) -> QCheckBox:
+    def make_checkbox(self, title: str, callback: Callable, default: bool = False) -> QCheckBox:
         checkbox = QCheckBox()
         checkbox.setText(title)
+        if default:
+            checkbox.toggle()
         checkbox.toggled.connect(callback)
         return checkbox
 
@@ -170,10 +178,12 @@ class Window(QWidget):
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
         set_config(PATH_CONFIG, dir)
         self.__sources_button.setText(f'Select sources: {dir}')
+        if (self.__processing_config['skip']):
+            return
         self.__progress.start.emit(dir)
 
-    def __checkbox_callback(self) -> None:
-        self.__should_crop_videos = self.sender().isChecked()
+    def __checkbox_callback(self, field: str) -> None:
+        self.__processing_config[field] = self.sender().isChecked()
 
     def keyPressEvent(self, e: QKeyEvent):
         selected_item, index = self.selectables_grid.selected()
