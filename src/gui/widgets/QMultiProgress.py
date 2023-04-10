@@ -11,14 +11,16 @@ class Tracker(QObject):
 
     __tracked_function: Callable[[Any],
                                  Generator[tuple[int, int], None, None]] = None
+    __args = None
 
-    def __init__(self, func: Callable[[Any], Generator[tuple[int, int], None, None]]):
+    def __init__(self, func: Callable[[Any], Generator[tuple[int, int], None, None]], args):
         super().__init__()
         self.__tracked_function = func
+        self.__args = args
 
-    def doTracking(self, args):
+    def doTracking(self):
         start_time = time.time()
-        track = self.__tracked_function(args)
+        track = self.__tracked_function(self.__args)
         values = next(track)
         self.initValues.emit(values)
         for amnt, cnt in track:
@@ -41,8 +43,10 @@ class QMultiProgress(QWidget):
     __counter_label: QLabel = None
     __eta_label: QLabel = None
 
-    __tracking_thread: QThread = QThread()
+    __tracking_thread: QThread = None
     __tracker: Tracker = None
+    __tracked_function: Callable[[Any],
+                                 Generator[tuple[int, int], None, None]] = None
 
     __window: QWidget = None
 
@@ -50,15 +54,9 @@ class QMultiProgress(QWidget):
         super().__init__()
         self.__window = window
         self.__total = total
+        self.__tracked_function = func
 
-        self.__tracker = Tracker(func)
-        self.__tracker.moveToThread(self.__tracking_thread)
-        self.__tracker.finished.connect(self.__tracking_thread.quit)
-        self.__tracking_thread.finished.connect(self.finish)
-        self.start.connect(self.__tracker.doTracking)
-        self.__tracker.initValues.connect(self.initValues)
-        self.__tracker.updateValues.connect(self.update)
-        self.__tracking_thread.start()
+        self.start.connect(self.startProcess)
 
         vbox = QVBoxLayout()
         self.setLayout(vbox)
@@ -82,9 +80,25 @@ class QMultiProgress(QWidget):
         self.__total = total
         self.__counter_label.setText(f'{self.__count}/{self.__total}')
 
+    def startProcess(self, args):
+        self.__progress_bar.setHidden(False)
+        self.__counter_label.setHidden(False)
+        self.setHidden(False)
+        self.__window.sources_button.setDisabled(True)
+
+        self.__tracker = Tracker(self.__tracked_function, args)
+        self.__tracking_thread = QThread()
+        self.__tracker.moveToThread(self.__tracking_thread)
+        self.__tracker.finished.connect(self.__tracking_thread.quit)
+        self.__tracking_thread.finished.connect(self.finish)
+        self.__tracking_thread.started.connect(self.__tracker.doTracking)
+        self.__tracker.initValues.connect(self.initValues)
+        self.__tracker.updateValues.connect(self.update)
+
+        self.__tracking_thread.start()
+
     def initValues(self, values: tuple[int, int, list[int]]):
         _, total, metadata = values
-        self.setHidden(False)
         self.setTotal(total)
         self.__amount_per_subprocess = metadata['frame_counts']
         self.__window.metadata.emit(metadata)
@@ -133,6 +147,7 @@ class QMultiProgress(QWidget):
 
     def finish(self):
         self.__tracker.deleteLater()
+        self.__tracking_thread.deleteLater()
 
         # hide progress
         self.__progress_bar.setHidden(True)
@@ -140,3 +155,4 @@ class QMultiProgress(QWidget):
 
         # Write DONE
         self.__eta_label.setText('Time remaining: DONE!')
+        self.__window.sources_button.setDisabled(False)

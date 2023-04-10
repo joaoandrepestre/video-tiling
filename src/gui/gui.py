@@ -94,9 +94,9 @@ class Window(QWidget):
         video_vbox.addWidget(skip_checkbox)
         video_vbox.addWidget(self.__progress)
 
-        self.__sources_button = self.make_button(
+        self.sources_button = self.make_button(
             f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
-        video_vbox.addWidget(self.__sources_button)
+        video_vbox.addWidget(self.sources_button)
         self.__aspect_ratio = QTupleInput(midi, 'Aspect Ratio', 'Width', 'Height',
                                           get_config(ASPECT_RATIO_CONFIG),
                                           lambda x: set_config(
@@ -192,7 +192,7 @@ class Window(QWidget):
         dir = QFileDialog.getExistingDirectory(
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
         set_config(PATH_CONFIG, dir)
-        self.__sources_button.setText(f'Select sources: {dir}')
+        self.sources_button.setText(f'Select sources: {dir}')
         self.__progress.start.emit(dir)
 
     def __checkbox_callback(self, field: str) -> None:
