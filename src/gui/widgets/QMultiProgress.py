@@ -2,7 +2,6 @@ from typing import Callable, Generator, Any
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QProgressBar, QLabel
 import time
-import debugpy
 
 
 class Tracker(QObject):
@@ -20,15 +19,14 @@ class Tracker(QObject):
         self.__args = args
 
     def doTracking(self):
-        debugpy.debug_this_thread()
         start_time = time.time()
         track = self.__tracked_function(self.__args)
         values = next(track)
         self.initValues.emit(values)
-        for amnt, cnt in track:
+        for amnt, cnt, _, msg in track:
             curr_time = time.time()
             elapsed = int(curr_time - start_time)
-            self.updateValues.emit((amnt, cnt, elapsed))
+            self.updateValues.emit((amnt, cnt, elapsed, msg))
         self.finished.emit()
 
 
@@ -98,8 +96,12 @@ class QMultiProgress(QWidget):
 
         self.__tracking_thread.start()
 
-    def initValues(self, values: tuple[int, int, list[int]]):
-        _, total, metadata = values
+    def initValues(self, values: tuple[int, int, dict, str]):
+        _, total, metadata, msg = values
+        if (msg != ''):
+            self.__window.alert.emit(msg)
+        if (metadata is None):
+            return
         self.setTotal(total)
         self.__amount_per_subprocess = metadata['frame_counts']
         self.__window.metadata.emit(metadata)
@@ -123,8 +125,8 @@ class QMultiProgress(QWidget):
         self.__eta_label.setText(
             f'Time remaining: {hours}h{minutes}m{seconds}s')
 
-    def update(self, values: tuple[int, int, int]) -> None:
-        amnt, cnt, elapsed = values
+    def update(self, values: tuple[int, int, int, str]) -> None:
+        amnt, cnt, elapsed, msg = values
         self.setCount(cnt)
 
         eta = 0
@@ -145,6 +147,8 @@ class QMultiProgress(QWidget):
             eta = int(unit_time * remaining)
 
         self.setETA(eta)
+        if (msg != ''):
+            self.__window.alert.emit(msg)
 
     def finish(self):
         self.__tracker.deleteLater()

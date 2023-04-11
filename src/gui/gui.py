@@ -2,10 +2,11 @@ from __future__ import annotations
 import sys
 from typing import Callable
 from threading import Thread
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from PyQt6.QtGui import QKeyEvent, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QCheckBox
+    QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog, QCheckBox,
+    QMessageBox
 )
 from gui.widgets.QSelectablesGrid import QSelectablesGrid
 from gui.widgets.QLabeledInput import QLabeledIntInput, QLabeledFloatInput
@@ -29,6 +30,7 @@ HEIGHT = 600
 class Window(QWidget):
     metadata = pyqtSignal(dict)
     progressDone = pyqtSignal()
+    alert = pyqtSignal(str)
 
     # rendering
     __render_thread: Thread = None
@@ -60,9 +62,11 @@ class Window(QWidget):
 
         self.metadata.connect(self.set_metadata)
         self.progressDone.connect(self.progress_done)
+        self.alert.connect(self.launchAlert)
 
         # draw gui
-        self.setWindowIcon(QIcon('./statics/tile-icon.ico'))
+        self.ICON = QIcon('./statics/tile-icon.ico')
+        self.setWindowIcon(self.ICON)
         self.setWindowTitle('Tyler - Config')
         self.setMaximumWidth(WIDTH)
         self.setMaximumHeight(HEIGHT)
@@ -192,6 +196,11 @@ class Window(QWidget):
     # callbacks
     def __start_callback(self) -> None:
         if (not self.is_rendering()):
+            dir = get_config(PATH_CONFIG)
+            if (dir == ''):
+                self.launchAlert(
+                    'A sources directory must be selected before launching')
+                return
             self.__render_thread = Thread(target=T.render, args=[self.__midi])
             self.__render_thread.start()
 
@@ -202,21 +211,29 @@ class Window(QWidget):
         self.__midi_status.setStatus(status)
 
     def __file_callback(self) -> None:
-        dir = QFileDialog.getExistingDirectory(
+        dir: str = QFileDialog.getExistingDirectory(
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
+        if (dir == ''):
+            return
         set_config(PATH_CONFIG, dir)
         self.sources_button.setText(f'Select sources: {dir}')
         self.launchProgressDialog(dir)
 
+    def launchAlert(self, msg: str):
+        QMessageBox.information(self, 'WARNING', msg)
+
     def launchProgressDialog(self, dir: str) -> None:
         if (self.__progress_win is None):
             self.__progress_win = QWidget()
+            self.__progress_win.setWindowFlag(
+                Qt.WindowType.WindowCloseButtonHint, False)
             vbox = QVBoxLayout()
             vbox.addWidget(self.__progress)
             self.__progress_win.setLayout(vbox)
             self.__progress_win.setWindowTitle(f'Processing: {dir}')
-            self.__progress_win.setWindowIcon(QIcon('./statics/tile-icon.ico'))
-            self.__progress_win.setMinimumWidth(WIDTH)
+            self.__progress_win.setWindowIcon(self.ICON)
+            self.__progress_win.setFixedWidth(WIDTH)
+            self.__progress_win.setFixedHeight(100)
         self.sources_button.setDisabled(True)
         self.__progress_win.show()
         self.__progress.start.emit(dir)
@@ -251,6 +268,9 @@ class Window(QWidget):
         set_config(MIDI_CONFIG, midi_map)
         selected_item.setText(f'{midi_map[index]} | {key_map[index]}')
         self.selectables_grid.cleanSelection()
+
+    def closeEvent(self, event):
+        QApplication.closeAllWindows()
 
 
 def draw_gui(midi: Midi):

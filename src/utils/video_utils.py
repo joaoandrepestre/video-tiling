@@ -6,7 +6,7 @@ from statistics import mode
 SUPPORTED_TYPES = ['mp4', 'mkv', 'avi']
 
 
-def check_video_type(filename: str) -> bool:
+def isSupported(filename: str) -> bool:
     ext = filename.split('.')[-1]
     return ext in SUPPORTED_TYPES
 
@@ -96,7 +96,7 @@ def reshape(frame, shape: tuple[int, int]):
     return cv2.resize(frame, new_shape)
 
 
-def process_video(dir_path: str, video: str, video_index: int, out_dir: str, shape: tuple[int, int], fps: float, resize: bool, crop: bool) -> Generator[int, None, None]:
+def process_video(dir_path: str, video: str, video_index: int, out_dir: str, shape: tuple[int, int], fps: float, resize: bool, crop: bool) -> Generator[tuple[int, str], None, None]:
     # open video file
     video_path = f'{dir_path}/{video}'
     cap = cv2.VideoCapture(video_path)
@@ -110,8 +110,7 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
     ar = w_frame / h_frame
     ar_shape = shape[0] / shape[1]
     if (resize and (ar != ar_shape)):
-        print(
-            f'[WARN] Video {video} is being resized to fit aspect ratio: {shape[0]} x {shape[1]}')
+        yield (0, f'Video {video} will be resized to fit aspect ratio: {shape[0]} x {shape[1]}')
 
     # open writer for output video
     video_name = '.'.join(video.split('.')[:-1])
@@ -133,7 +132,7 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
         # compute how much is done
         cnt += 1
         xx = int(cnt * 100 / frames)
-        yield cnt
+        yield (cnt, '')
 
         # resize when needed
         if (resize):
@@ -150,12 +149,19 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
     writer.release()
 
 
-def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[int, int, Any], None, None]:
-    # filter out unsopported file formats
-    videos = list(filter(check_video_type, listdir(srcs_dir)))
+def find_metadata(srcs_dir: str, crop: bool) -> tuple[Any, str]:
+    dir = listdir(srcs_dir)
+    supported = list(filter(isSupported, dir))
+
+    unsupported = list(filter(lambda x: not isSupported(x), dir))
+    unsupported_files = ', '.join(unsupported)
+    msg = f'The following files are not supported and will be ignored:\n{unsupported_files}'
 
     # get total number of supported videos in srcs_dir
-    total = len(videos)
+    total = len(supported)
+
+    if (total == 0):
+        return (None, msg)
 
     # find metadata
     aspects = []
@@ -163,7 +169,7 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[i
     min_fps = 100
     max_shape = (0, 0)
     for i in range(total):
-        video_path = f'{srcs_dir}/{videos[i]}'
+        video_path = f'{srcs_dir}/{supported[i]}'
         cap = cv2.VideoCapture(video_path)
 
         w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(
@@ -190,18 +196,31 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[i
         'shape': shape if crop else [3 * shape[0], 2 * shape[1]],
         'fps': min_fps
     }
-    yield (0, total, metadata)
+    return (metadata, msg)
+
+
+def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[int, int, Any, str], None, None]:
+    # filter out unsopported file formats
+    dir = listdir(srcs_dir)
+    videos = list(filter(isSupported, dir))
+
+    # get total number of supported videos in srcs_dir
+    total = len(videos)
+
+    # send out initial metadata
+    metadata, msg = find_metadata(srcs_dir, crop)
+    yield (0, total, metadata, msg)
 
     # begin processing
     if (not resize and not crop):
-        yield (100, total)
+        yield (100, total, None, '')
         return
 
     # if an out_dir already exists, assume we are done and stop processing
     # TODO: how we check if processing is done
     out_dir = f'{srcs_dir}/.out'
     if path.exists(out_dir):
-        yield (100, total)
+        yield (100, total, None, '')
         return
 
     # make output directory
@@ -211,7 +230,7 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[i
     # TODO: paralel processing -> maybe 1 thread per video ?
     count = 0
     for i in range(total):
-        for frame in process_video(srcs_dir, videos[i], i, out_dir, shape, min_fps, resize, crop):
-            yield (frame, count)
+        for (frame, msg) in process_video(srcs_dir, videos[i], i, out_dir, metadata['shape'], metadata['fps'], resize, crop):
+            yield (frame, count, None, msg)
         count += 1
-        yield (frame, count)
+        yield (frame, count, None, msg)
