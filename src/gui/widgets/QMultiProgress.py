@@ -84,7 +84,6 @@ class QMultiProgress(QWidget):
         self.__progress_bar.setHidden(False)
         self.__counter_label.setHidden(False)
         self.setHidden(False)
-        self.__window.sources_button.setDisabled(True)
 
         self.__tracker = Tracker(self.__tracked_function, args)
         self.__tracking_thread = QThread()
@@ -155,4 +154,4 @@ class QMultiProgress(QWidget):
 
         # Write DONE
         self.__eta_label.setText('Time remaining: DONE!')
-        self.__window.sources_button.setDisabled(False)
+        self.__window.progressDone.emit()

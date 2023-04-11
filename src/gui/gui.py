@@ -28,6 +28,7 @@ HEIGHT = 600
 
 class Window(QWidget):
     metadata = pyqtSignal(dict)
+    progressDone = pyqtSignal()
 
     # rendering
     __render_thread: Thread = None
@@ -58,6 +59,7 @@ class Window(QWidget):
         self.__timer.start(1000)
 
         self.metadata.connect(self.set_metadata)
+        self.progressDone.connect(self.progress_done)
 
         # draw gui
         self.setWindowIcon(QIcon('./statics/tile-icon.ico'))
@@ -68,6 +70,33 @@ class Window(QWidget):
 
         video_section = QCollapsableSection('VIDEO')
         video_vbox = QVBoxLayout()
+
+        self.__processing_config: dict[str, bool] = {
+            'crop': False,
+            'skip': True
+        }
+        hbox = QHBoxLayout()
+        crop_checkbox = self.make_checkbox(
+            'Crop videos?', lambda: self.__checkbox_callback('crop'))
+        skip_checkbox = self.make_checkbox(
+            'Skip pre-processing?', lambda: self.__checkbox_callback('skip'), True)
+        hbox.addWidget(crop_checkbox)
+        hbox.addWidget(skip_checkbox)
+        video_vbox.addLayout(hbox)
+
+        self.sources_button = self.make_button(
+            f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
+        video_vbox.addWidget(self.sources_button)
+
+        self.__progress_win = None
+        self.__progress = QMultiProgress(self, 0,
+                                         lambda args: process_videos(args,
+                                                                     self.__processing_config['crop'],
+                                                                     self.__processing_config['skip'])
+                                         )
+        # self.__progress.setHidden(True)
+        # video_vbox.addWidget(self.__progress)
+
         self.__landscapes = QLabeledIntInput(
             midi,
             'Landscapes',
@@ -76,27 +105,6 @@ class Window(QWidget):
         )
         video_vbox.addWidget(self.__landscapes)
 
-        self.__processing_config: dict[str, bool] = {
-            'crop': False,
-            'skip': True
-        }
-        crop_checkbox = self.make_checkbox(
-            'Crop videos?', lambda: self.__checkbox_callback('crop'))
-        skip_checkbox = self.make_checkbox(
-            'Skip pre-processing?', lambda: self.__checkbox_callback('skip'), True)
-        self.__progress = QMultiProgress(self, 0,
-                                         lambda args: process_videos(args,
-                                                                     self.__processing_config['crop'],
-                                                                     self.__processing_config['skip'])
-                                         )
-        self.__progress.setHidden(True)
-        video_vbox.addWidget(crop_checkbox)
-        video_vbox.addWidget(skip_checkbox)
-        video_vbox.addWidget(self.__progress)
-
-        self.sources_button = self.make_button(
-            f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
-        video_vbox.addWidget(self.sources_button)
         self.__aspect_ratio = QTupleInput(midi, 'Aspect Ratio', 'Width', 'Height',
                                           get_config(ASPECT_RATIO_CONFIG),
                                           lambda x: set_config(
@@ -108,7 +116,8 @@ class Window(QWidget):
             'Framerate',
             11, 33,
             get_config(FRAMERATE_CONFIG),
-            lambda x: set_config(FRAMERATE_CONFIG, x)
+            lambda x: set_config(FRAMERATE_CONFIG, x),
+            extra_buttons=True
         )
         video_vbox.addWidget(self.framerate_input)
         video_section.setContentLayout(video_vbox)
@@ -117,14 +126,14 @@ class Window(QWidget):
 
         midi_section = QCollapsableSection('MIDI')
         midi_vbox = QVBoxLayout()
-        midi_vbox.addWidget(
-            QLabeledIntInput(
-                midi,
-                'Midi Port',
-                default_value=get_config(MIDI_PORT_CONFIG),
-                callback=lambda x: set_config(MIDI_PORT_CONFIG, x)
-            )
-        )
+        # midi_vbox.addWidget(
+        #    QLabeledIntInput(
+        #        midi,
+        #        'Midi Port',
+        #        default_value=get_config(MIDI_PORT_CONFIG),
+        #        callback=lambda x: set_config(MIDI_PORT_CONFIG, x)
+        #    )
+        # )
         self.__midi_status = QStatusDisplay('Connected', 'Disconnected')
         midi_vbox.addWidget(self.__midi_status)
         self.selectables_grid = self.make_controls_grid()
@@ -146,6 +155,10 @@ class Window(QWidget):
         w_shape, h_shape = metadata['shape']
         h, w = int(h_shape / 2) - 1, int(w_shape / 3) - 1
         self.__aspect_ratio.setValue((w, h))
+
+    def progress_done(self):
+        self.sources_button.setDisabled(False)
+        self.__progress_win.hide()
 
     # gui utils
     def make_button(self, title: str, callback: Callable) -> QPushButton:
@@ -193,6 +206,19 @@ class Window(QWidget):
             self, 'Select scenes directory...', get_config(PATH_CONFIG))
         set_config(PATH_CONFIG, dir)
         self.sources_button.setText(f'Select sources: {dir}')
+        self.launchProgressDialog(dir)
+
+    def launchProgressDialog(self, dir: str) -> None:
+        if (self.__progress_win is None):
+            self.__progress_win = QWidget()
+            vbox = QVBoxLayout()
+            vbox.addWidget(self.__progress)
+            self.__progress_win.setLayout(vbox)
+            self.__progress_win.setWindowTitle(f'Processing: {dir}')
+            self.__progress_win.setWindowIcon(QIcon('./statics/tile-icon.ico'))
+            self.__progress_win.setMinimumWidth(WIDTH)
+        self.sources_button.setDisabled(True)
+        self.__progress_win.show()
         self.__progress.start.emit(dir)
 
     def __checkbox_callback(self, field: str) -> None:

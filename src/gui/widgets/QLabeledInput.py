@@ -18,7 +18,7 @@ class QLabeledInput(QWidget, Generic[T]):
     _min_value: T = None
     _max_value: T = None
 
-    def __init__(self, midi: Midi, title: str, min: T, max: T, default_value: T, callback: Callable[[T], None]):
+    def __init__(self, midi: Midi, title: str, min: T, max: T, default_value: T, callback: Callable[[T], None], extra_buttons: bool):
         super().__init__()
         self.setMaximumHeight(60)
         hbox = QHBoxLayout()
@@ -30,18 +30,20 @@ class QLabeledInput(QWidget, Generic[T]):
         self._min_value = min
         self._max_value = max
         self._input.textChanged.connect(self.__encapsulated_callback)
-        dial = QMidiKnob(midi, None, int(default_value),
-                         lambda x:  self._dial_change(x))
-
-        minus = QSquareButton('-', 20)
-        minus.clicked.connect(self.__decrement)
-        plus = QSquareButton('+', 20)
-        plus.clicked.connect(self.__increment)
         hbox.addWidget(label, alignment=Qt.AlignmentFlag.AlignLeft)
         hbox.addWidget(self._input, alignment=Qt.AlignmentFlag.AlignAbsolute)
-        hbox.addWidget(minus)
-        hbox.addWidget(plus)
-        hbox.addWidget(dial)
+
+        if (extra_buttons):
+            dial = QMidiKnob(midi, None, int(default_value),
+                             lambda x:  self._dial_change(x))
+
+            minus = QSquareButton('-', 20)
+            minus.clicked.connect(self.__decrement)
+            plus = QSquareButton('+', 20)
+            plus.clicked.connect(self.__increment)
+            hbox.addWidget(minus)
+            hbox.addWidget(plus)
+            hbox.addWidget(dial)
 
     def _convert_value(value: str) -> T | None:
         pass
@@ -74,8 +76,8 @@ class QLabeledInput(QWidget, Generic[T]):
 
 
 class QLabeledIntInput(QLabeledInput[int]):
-    def __init__(self, midi: Midi, title: str, min: int = 0, max: int = 127, default_value: int = 0, callback: Callable[[int], None] = None):
-        super().__init__(midi, title, min, max, default_value, callback)
+    def __init__(self, midi: Midi, title: str, min: int = 0, max: int = 127, default_value: int = 0, callback: Callable[[int], None] = None, extra_buttons: bool = False):
+        super().__init__(midi, title, min, max, default_value, callback, extra_buttons)
         validator = QIntValidator()
         self._input.setValidator(validator)
         self._increment = 1
@@ -93,8 +95,8 @@ class QLabeledIntInput(QLabeledInput[int]):
 
 
 class QLabeledFloatInput(QLabeledInput[float]):
-    def __init__(self, midi: Midi, title: str, min: float, max: float, default_value: float, callback: Callable[[float], None]):
-        super().__init__(midi, title, min, max, default_value, callback)
+    def __init__(self, midi: Midi, title: str, min: float, max: float, default_value: float, callback: Callable[[float], None], extra_buttons: bool = False):
+        super().__init__(midi, title, min, max, default_value, callback, extra_buttons)
         validator = QDoubleValidator()
         validator.setDecimals(3)
         self._input.setValidator(validator)
