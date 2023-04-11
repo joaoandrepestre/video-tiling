@@ -1,4 +1,4 @@
-from os import listdir
+from os import listdir, path
 from time import time
 import cv2
 import numpy as np
@@ -133,6 +133,10 @@ def get_keyboard_input() -> tuple[int, bool]:
 def setup_tiles() -> Tiles:
     num = get_config(LANDSCAPE_NUM_CONFIG)
     srcs_dir = get_config(PATH_CONFIG)
+
+    # if videos were preprocessed
+    if path.exists(f'{srcs_dir}/.out'):
+        srcs_dir = f'{srcs_dir}/.out'
 
     # Load files
     files = ['' for i in range(6*num)]

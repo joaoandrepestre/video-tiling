@@ -12,9 +12,9 @@ class QTupleInput(QWidget):
     __value: tuple[int, int] = None
 
     def __init__(self, midi: Midi, main_title: str, first_title: str, second_title: str,
-                 default_value: tuple[int, int] = None, callback: Callable[[tuple[int, int]], None] = lambda: None):
+                 default_value: tuple[int, int] = None, callback: Callable[[tuple[int, int]], None] = lambda: None, extra_buttons: bool = False):
         super().__init__()
-        self.setMaximumHeight(150)
+        self.setMaximumHeight(250)
         vbox = QVBoxLayout()
         self.setLayout(vbox)
         label = QLabel(main_title)
@@ -25,14 +25,16 @@ class QTupleInput(QWidget):
             first_title,
             140, 1080,
             default_value=default_value[0],
-            callback=lambda x: self.__first_callback(x)
+            callback=lambda x: self.__first_callback(x),
+            extra_buttons=extra_buttons
         )
         self.__second_input = QLabeledIntInput(
             midi,
             second_title,
             140, 1080,
             default_value=default_value[1],
-            callback=lambda x: self.__second_callback(x)
+            callback=lambda x: self.__second_callback(x),
+            extra_buttons=extra_buttons
         )
         vbox.addWidget(label)
         vbox.addWidget(self.__first_input)
@@ -45,3 +47,7 @@ class QTupleInput(QWidget):
     def __second_callback(self, value: int):
         self.__value[1] = value
         self.__callback(self.__value)
+
+    def setValue(self, value: tuple[int, int]):
+        self.__first_input.setText(f'{value[0]}')
+        self.__second_input.setText(f'{value[1]}')
