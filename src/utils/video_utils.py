@@ -2,6 +2,7 @@ from typing import Generator, Any
 from os import listdir, path, mkdir
 import cv2
 from statistics import mode
+from fractions import Fraction
 
 SUPPORTED_TYPES = ['mp4', 'mkv', 'avi']
 
@@ -109,8 +110,9 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
 
     ar = w_frame / h_frame
     ar_shape = shape[0] / shape[1]
+    ar_fract = Fraction(shape[0], shape[1])
     if (resize and (ar != ar_shape)):
-        yield (0, f'Video {video} will be resized to fit aspect ratio: {shape[0]} x {shape[1]}')
+        yield (0, f'Video {video} will be resized to fit aspect ratio {ar_fract.numerator}:{ar_fract.denominator}')
 
     # open writer for output video
     video_name = '.'.join(video.split('.')[:-1])
