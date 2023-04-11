@@ -3,7 +3,7 @@ from os import listdir, path, mkdir
 import cv2
 from statistics import mode
 
-SUPPORTED_TYPES = ['mp4', 'mkv']
+SUPPORTED_TYPES = ['mp4', 'mkv', 'avi']
 
 
 def check_video_type(filename: str) -> bool:
@@ -21,8 +21,8 @@ class VideoWriter:
     __path: str = None
     __fps: float = None
 
-    def __init__(self, out_dir: str, video_index: int, fps: float, crop: bool) -> None:
-        self.__path = f'{out_dir}/{video_index}'
+    def __init__(self, out_dir: str, video: str, fps: float, crop: bool) -> None:
+        self.__path = f'{out_dir}/{video}'
         self.__multiple = crop
         self.__fps = fps
         if (crop):
@@ -96,8 +96,9 @@ def reshape(frame, shape: tuple[int, int]):
     return cv2.resize(frame, new_shape)
 
 
-def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[int, int], fps: float, crop: bool) -> Generator[int, None, None]:
+def process_video(dir_path: str, video: str, video_index: int, out_dir: str, shape: tuple[int, int], fps: float, resize: bool, crop: bool) -> Generator[int, None, None]:
     # open video file
+    video_path = f'{dir_path}/{video}'
     cap = cv2.VideoCapture(video_path)
 
     # get video metadata
@@ -106,12 +107,20 @@ def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[
     w_fps, frames = cap.get(cv2.CAP_PROP_FPS), cap.get(
         cv2.CAP_PROP_FRAME_COUNT)
 
-    if (w_frame != shape[0] or h_frame != shape[1]):
+    ar = w_frame / h_frame
+    ar_shape = shape[0] / shape[1]
+    if (resize and (ar != ar_shape)):
         print(
-            f'[WARN] Video {video_index} is being resized to fit aspect ratio: {shape[0]} x {shape[1]}')
+            f'[WARN] Video {video} is being resized to fit aspect ratio: {shape[0]} x {shape[1]}')
 
     # open writer for output video
-    writer = VideoWriter(out_dir, video_index, w_fps, crop)
+    video_name = '.'.join(video.split('.')[:-1])
+    writer = VideoWriter(
+        out_dir,
+        f'{video_index}' if crop else video_name,
+        w_fps,
+        crop
+    )
 
     # pass through each frame
     cnt = 0
@@ -127,21 +136,21 @@ def process_video(video_path: str, video_index: int, out_dir: str, shape: tuple[
         yield cnt
 
         # resize when needed
-        frame = reshape(frame, shape)
+        if (resize):
+            frame = reshape(frame, shape)
 
-        # crop video
+        # crop video when needed
         if (crop):
-            cropped = crop_frame(frame)
-            writer.write(cropped)
-        else:
-            writer.write(frame)
+            frame = crop_frame(frame)
+
+        writer.write(frame)
 
     # release resources
     cap.release()
     writer.release()
 
 
-def process_videos(srcs_dir: str, auto_crop: bool, skip: bool) -> Generator[tuple[int, int, Any], None, None]:
+def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[int, int, Any], None, None]:
     # filter out unsopported file formats
     videos = list(filter(check_video_type, listdir(srcs_dir)))
 
@@ -176,15 +185,15 @@ def process_videos(srcs_dir: str, auto_crop: bool, skip: bool) -> Generator[tupl
 
     # send initial metadata
     metadata = {
-        'total': total if auto_crop else int(total / 6),
+        'total': total if crop else int(total / 6),
         'frame_counts': frame_counts,
-        'shape': shape if auto_crop else [3 * shape[0], 2 * shape[1]],
+        'shape': shape if crop else [3 * shape[0], 2 * shape[1]],
         'fps': min_fps
     }
     yield (0, total, metadata)
 
     # begin processing
-    if (skip):
+    if (not resize and not crop):
         yield (100, total)
         return
 
@@ -202,8 +211,7 @@ def process_videos(srcs_dir: str, auto_crop: bool, skip: bool) -> Generator[tupl
     # TODO: paralel processing -> maybe 1 thread per video ?
     count = 0
     for i in range(total):
-        video_path = f'{srcs_dir}/{videos[i]}'
-        for frame in process_video(video_path, i, out_dir, shape, min_fps, auto_crop):
+        for frame in process_video(srcs_dir, videos[i], i, out_dir, shape, min_fps, resize, crop):
             yield (frame, count)
         count += 1
         yield (frame, count)

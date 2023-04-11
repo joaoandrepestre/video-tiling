@@ -2,6 +2,7 @@ from typing import Callable, Generator, Any
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QProgressBar, QLabel
 import time
+import debugpy
 
 
 class Tracker(QObject):
@@ -19,6 +20,7 @@ class Tracker(QObject):
         self.__args = args
 
     def doTracking(self):
+        debugpy.debug_this_thread()
         start_time = time.time()
         track = self.__tracked_function(self.__args)
         values = next(track)

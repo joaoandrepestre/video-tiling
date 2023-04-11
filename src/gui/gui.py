@@ -72,16 +72,16 @@ class Window(QWidget):
         video_vbox = QVBoxLayout()
 
         self.__processing_config: dict[str, bool] = {
-            'crop': False,
-            'skip': True
+            'resize': False,
+            'crop': False
         }
         hbox = QHBoxLayout()
+        resize_checkbox = self.make_checkbox(
+            'Resize videos?', lambda: self.__checkbox_callback('resize'))
         crop_checkbox = self.make_checkbox(
             'Crop videos?', lambda: self.__checkbox_callback('crop'))
-        skip_checkbox = self.make_checkbox(
-            'Skip pre-processing?', lambda: self.__checkbox_callback('skip'), True)
+        hbox.addWidget(resize_checkbox)
         hbox.addWidget(crop_checkbox)
-        hbox.addWidget(skip_checkbox)
         video_vbox.addLayout(hbox)
 
         self.sources_button = self.make_button(
@@ -91,8 +91,8 @@ class Window(QWidget):
         self.__progress_win = None
         self.__progress = QMultiProgress(self, 0,
                                          lambda args: process_videos(args,
-                                                                     self.__processing_config['crop'],
-                                                                     self.__processing_config['skip'])
+                                                                     self.__processing_config['resize'],
+                                                                     self.__processing_config['crop'])
                                          )
         # self.__progress.setHidden(True)
         # video_vbox.addWidget(self.__progress)
