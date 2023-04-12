@@ -21,14 +21,14 @@ from config.config import (
     LANDSCAPE_NUM_CONFIG, PATH_CONFIG, ASPECT_RATIO_CONFIG, FRAMERATE_CONFIG,
     MIDI_PORT_CONFIG, MIDI_CONFIG, KEYBOARD_CONFIG
 )
-from utils.video_utils import process_videos
+from utils.video_utils import process_videos, VideoMetadata
 
 WIDTH = 450
 HEIGHT = 600
 
 
 class Window(QWidget):
-    metadata = pyqtSignal(dict)
+    metadata = pyqtSignal(VideoMetadata)
     progressDone = pyqtSignal()
     alert = pyqtSignal(str)
 
@@ -153,10 +153,10 @@ class Window(QWidget):
         if (self.is_rendering()):
             self.__render_thread.join()
 
-    def set_metadata(self, metadata: dict) -> None:
-        self.__landscapes.setText(f'{metadata["total"]}')
-        self.framerate_input.setText(f'{metadata["fps"]}')
-        w_shape, h_shape = metadata['shape']
+    def set_metadata(self, metadata: VideoMetadata) -> None:
+        self.__landscapes.setText(f'{metadata.total}')
+        self.framerate_input.setText(f'{metadata.fps}')
+        w_shape, h_shape = metadata.width, metadata.height
         h, w = int(h_shape / 2) - 1, int(w_shape / 3) - 1
         self.__aspect_ratio.setValue((w, h))
 

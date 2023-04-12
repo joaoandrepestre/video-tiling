@@ -2,18 +2,19 @@ from typing import Callable, Generator, Any
 from PyQt6.QtCore import QObject, QThread, pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QProgressBar, QLabel
 import time
+from utils.video_utils import VideoMetadata, ProcessingUpdateMessage
 
 
 class Tracker(QObject):
     finished = pyqtSignal()
-    initValues = pyqtSignal(tuple)
-    updateValues = pyqtSignal(tuple)
+    initValues = pyqtSignal(ProcessingUpdateMessage)
+    updateValues = pyqtSignal(ProcessingUpdateMessage)
 
     __tracked_function: Callable[[Any],
-                                 Generator[tuple[int, int], None, None]] = None
+                                 Generator[ProcessingUpdateMessage, None, None]] = None
     __args = None
 
-    def __init__(self, func: Callable[[Any], Generator[tuple[int, int], None, None]], args):
+    def __init__(self, func: Callable[[Any], Generator[ProcessingUpdateMessage, None, None]], args):
         super().__init__()
         self.__tracked_function = func
         self.__args = args
@@ -23,10 +24,10 @@ class Tracker(QObject):
         track = self.__tracked_function(self.__args)
         values = next(track)
         self.initValues.emit(values)
-        for amnt, cnt, _, msg in track:
+        for update in track:
             curr_time = time.time()
-            elapsed = int(curr_time - start_time)
-            self.updateValues.emit((amnt, cnt, elapsed, msg))
+            update.elapsed_time = int(curr_time - start_time)
+            self.updateValues.emit(update)
         self.finished.emit()
 
 
@@ -36,6 +37,7 @@ class QMultiProgress(QWidget):
     __total: int = 0
     __count: int = 0
     __amount_per_subprocess: list[int] = None
+    __total_amount: int = None
 
     __eta: int = 0
 
@@ -61,14 +63,12 @@ class QMultiProgress(QWidget):
         vbox = QVBoxLayout()
         self.setLayout(vbox)
 
-        hbox = QHBoxLayout()
-
         self.__progress_bar = QProgressBar()
-        self.__counter_label = QLabel(f'{self.__count}/{self.__total}')
+        self.__counter_label = QLabel(
+            f'Videos processed: {self.__count}/{self.__total}')
 
-        hbox.addWidget(self.__progress_bar)
-        hbox.addWidget(self.__counter_label)
-        vbox.addLayout(hbox)
+        vbox.addWidget(self.__progress_bar)
+        vbox.addWidget(self.__counter_label)
 
         self.__eta_label = QLabel(f'{self.__eta} seconds')
 
@@ -78,7 +78,8 @@ class QMultiProgress(QWidget):
 
     def setTotal(self, total: int) -> None:
         self.__total = total
-        self.__counter_label.setText(f'{self.__count}/{self.__total}')
+        self.__counter_label.setText(
+            f'Videos processed: {self.__count}/{self.__total}')
 
     def startProcess(self, args):
         self.__progress_bar.setHidden(False)
@@ -96,22 +97,25 @@ class QMultiProgress(QWidget):
 
         self.__tracking_thread.start()
 
-    def initValues(self, values: tuple[int, int, dict, str]):
-        _, total, metadata, msg = values
+    def initValues(self, init: ProcessingUpdateMessage):
+        if (init.metadata is None):
+            return
+        self.setTotal(len(init.metadata.frame_counts))
+        self.__amount_per_subprocess = init.metadata.frame_counts
+        self.__total_amount = sum(self.__amount_per_subprocess)
+
+        self.__window.metadata.emit(init.metadata)
+        msg = init.message()
         if (msg != ''):
             self.__window.alert.emit(msg)
-        if (metadata is None):
-            return
-        self.setTotal(total)
-        self.__amount_per_subprocess = metadata['frame_counts']
-        self.__window.metadata.emit(metadata)
 
     def setValue(self, value: int) -> None:
         self.__progress_bar.setValue(value)
 
     def setCount(self, count: int) -> None:
         self.__count = count
-        self.__counter_label.setText(f'{self.__count}/{self.__total}')
+        self.__counter_label.setText(
+            f'Videos processed: {self.__count}/{self.__total}')
 
     def setETA(self, eta: int) -> None:
         self.__eta = eta
@@ -125,27 +129,26 @@ class QMultiProgress(QWidget):
         self.__eta_label.setText(
             f'Time remaining: {hours}h{minutes}m{seconds}s')
 
-    def update(self, values: tuple[int, int, int, str]) -> None:
-        amnt, cnt, elapsed, msg = values
-        self.setCount(cnt)
+    def update(self, update: ProcessingUpdateMessage) -> None:
+        elapsed = update.elapsed_time
+        msg = update.message()
 
         eta = 0
-        if (cnt < self.__total):
-            current_amount = self.__amount_per_subprocess[cnt]
-            self.setValue(int(amnt * 100 / current_amount))
 
-            remaining = current_amount - amnt
-            elapsed_amnt = amnt + 0.001  # avoids division by 0
-            for i in range(self.__total):
-                a = self.__amount_per_subprocess[i]
-                if (i < cnt):
-                    elapsed_amnt += a
-                elif (i > cnt):
-                    remaining += a
+        elapsed_amnt = 0.001  # avoids division by 0
+        cnt = 0
+        for i in range(self.__total):
+            elapsed_amnt += update.frames_done[i]
+            if (update.frames_done[i] == self.__amount_per_subprocess[i]):
+                cnt += 1
+        remaining = self.__total_amount - elapsed_amnt
 
-            unit_time = (elapsed / elapsed_amnt)
-            eta = int(unit_time * remaining)
+        self.setValue(int(elapsed_amnt * 100 / self.__total_amount))
 
+        unit_time = (elapsed / elapsed_amnt)
+        eta = int(unit_time * remaining)
+
+        self.setCount(cnt)
         self.setETA(eta)
         if (msg != ''):
             self.__window.alert.emit(msg)
