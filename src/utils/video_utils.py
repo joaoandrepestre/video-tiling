@@ -1,10 +1,9 @@
 from typing import Generator, Any
 from os import listdir, path, mkdir
-from threading import Thread
+from threading import Thread, Event
 import cv2
 from statistics import mode
 from fractions import Fraction
-from time import sleep
 
 SUPPORTED_TYPES = ['mp4', 'mkv', 'avi']
 
@@ -121,7 +120,7 @@ class ProcessingUpdateMessage():
     messages: list[str] = None
     elapsed_time: int = None
 
-    modified: bool = False
+    modified: Event = Event()
 
     def __init__(self, total: int, metadata: VideoMetadata) -> None:
         self.frames_done = [0 for _ in range(total)]
@@ -130,14 +129,20 @@ class ProcessingUpdateMessage():
 
     def set_message(self, msg: str, index: int = None) -> None:
         if (index is None):
-            self.modified = self.message_general != msg
+            changed = self.message_general != msg
+            if changed:
+                self.modified.set()
             self.message_general = msg
             return
-        self.modified = self.messages[index] != msg
+        changed = self.messages[index] != msg
+        if changed:
+            self.modified.set()
         self.messages[index] = msg
 
     def set_frames(self, frame: int, index: int) -> None:
-        self.modified = self.frames_done[index] != frame
+        changed = self.frames_done[index] != frame
+        if changed:
+            self.modified.set()
         self.frames_done[index] = frame
 
     def message(self) -> str:
@@ -152,10 +157,12 @@ class ProcessingUpdateMessage():
                 return msg
         return ''
 
-    def is_modified(self) -> bool:
-        m = self.modified
-        self.modified = False
-        return m
+    def wait(self):
+        self.modified.wait()
+        self.modified.clear()
+
+    def done(self):
+        self.modified.set()
 
 
 def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
@@ -212,6 +219,7 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
     # release resources
     cap.release()
     writer.release()
+    update.done()
 
 
 def find_metadata(srcs_dir: str, crop: bool) -> tuple[VideoMetadata, str]:
@@ -306,9 +314,8 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[Process
 
     running = True
     while (running):
-        if (update.is_modified()):
-            yield update
-        sleep(0.5)
+        update.wait()
+        yield update
         running = threads_running(threads)
 
 
