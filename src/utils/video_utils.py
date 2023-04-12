@@ -101,13 +101,15 @@ def reshape(frame, shape: tuple[int, int]):
 class VideoMetadata():
     total: int = 0
     frame_counts: list[int] = []
+    sizes: list[tuple[int, int]] = []
     width: int = 0
     height: int = 0
     fps: float = 0
 
-    def __init__(self, total: int, frame_counts: list[int], w: int, h: int, fps: float):
+    def __init__(self, total: int, frame_counts: list[int], sizes: list[tuple[int, int]], w: int, h: int, fps: float):
         self.total = total
         self.frame_counts = frame_counts
+        self.sizes = sizes
         self.width = w
         self.height = h
         self.fps = fps
@@ -268,7 +270,7 @@ def find_metadata(srcs_dir: str, crop: bool) -> tuple[VideoMetadata, str]:
     t = total if crop else int(total / 6)
     w = shape[0] if crop else 3 * shape[0]
     h = shape[1] if crop else 2 * shape[1]
-    metadata = VideoMetadata(t, frame_counts, w, h, min_fps)
+    metadata = VideoMetadata(t, frame_counts, aspects, w, h, min_fps)
     return (metadata, msg)
 
 

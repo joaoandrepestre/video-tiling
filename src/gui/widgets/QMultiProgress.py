@@ -38,6 +38,7 @@ class QMultiProgress(QWidget):
     __count: int = 0
     __amount_per_subprocess: list[int] = None
     __total_amount: int = None
+    __size_per_subprocess: list[tuple[int, int]] = None
 
     __eta: int = 0
 
@@ -102,7 +103,13 @@ class QMultiProgress(QWidget):
             return
         self.setTotal(len(init.metadata.frame_counts))
         self.__amount_per_subprocess = init.metadata.frame_counts
-        self.__total_amount = sum(self.__amount_per_subprocess)
+        self.__size_per_subprocess = init.metadata.sizes
+        t = 0
+        for i in range(len(self.__amount_per_subprocess)):
+            size = self.__size_per_subprocess[i]
+            amnt = self.__amount_per_subprocess[i]
+            t += (amnt * size[0] * size[1])
+        self.__total_amount = t
 
         self.__window.metadata.emit(init.metadata)
         msg = init.message()
@@ -138,7 +145,8 @@ class QMultiProgress(QWidget):
         elapsed_amnt = 0.001  # avoids division by 0
         cnt = 0
         for i in range(self.__total):
-            elapsed_amnt += update.frames_done[i]
+            size = self.__size_per_subprocess[i]
+            elapsed_amnt += (update.frames_done[i] * size[0] * size[1])
             if (update.frames_done[i] == self.__amount_per_subprocess[i]):
                 cnt += 1
         remaining = self.__total_amount - elapsed_amnt
