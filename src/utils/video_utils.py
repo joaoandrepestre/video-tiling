@@ -4,6 +4,7 @@ from threading import Thread
 import cv2
 from statistics import mode
 from fractions import Fraction
+from time import sleep
 
 SUPPORTED_TYPES = ['mp4', 'mkv', 'avi']
 
@@ -120,10 +121,24 @@ class ProcessingUpdateMessage():
     messages: list[str] = None
     elapsed_time: int = None
 
+    modified: bool = False
+
     def __init__(self, total: int, metadata: VideoMetadata) -> None:
         self.frames_done = [0 for _ in range(total)]
         self.messages = ['' for _ in range(total)]
         self.metadata = metadata
+
+    def set_message(self, msg: str, index: int = None) -> None:
+        if (index is None):
+            self.modified = self.message_general != msg
+            self.message_general = msg
+            return
+        self.modified = self.messages[index] != msg
+        self.messages[index] = msg
+
+    def set_frames(self, frame: int, index: int) -> None:
+        self.modified = self.frames_done[index] != frame
+        self.frames_done[index] = frame
 
     def message(self) -> str:
         msg = self.message_general
@@ -136,6 +151,11 @@ class ProcessingUpdateMessage():
                 self.messages[i] = ''
                 return msg
         return ''
+
+    def is_modified(self) -> bool:
+        m = self.modified
+        self.modified = False
+        return m
 
 
 def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
@@ -155,7 +175,8 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
     ar_shape = shape[0] / shape[1]
     ar_fract = Fraction(shape[0], shape[1])
     if (resize and (ar != ar_shape)):
-        update.messages[video_index] = f'Video {video} will be resized to fit aspect ratio {ar_fract.numerator}:{ar_fract.denominator}'
+        update.set_message(
+            f'Video {video} will be resized to fit aspect ratio {ar_fract.numerator}:{ar_fract.denominator}', video_index)
 
     # open writer for output video
     video_name = '.'.join(video.split('.')[:-1])
@@ -176,7 +197,7 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
 
         # compute how much is done
         cnt += 1
-        update.frames_done[video_index] = cnt
+        update.set_frames(cnt, video_index)
 
         # resize when needed
         if (resize):
@@ -254,7 +275,7 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[Process
     # send out initial metadata
     metadata, msg = find_metadata(srcs_dir, crop)
     update = ProcessingUpdateMessage(total, metadata)
-    update.message_general = msg
+    update.set_message(msg)
 
     yield update
 
@@ -267,7 +288,7 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[Process
     # TODO: how we check if processing is done
     out_dir = f'{srcs_dir}/.out'
     if path.exists(out_dir):
-        update.message_general = 'Videos have already been processed'
+        update.set_message('Videos have already been processed')
         yield update
         return
 
@@ -285,5 +306,14 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[Process
 
     running = True
     while (running):
-        yield update
-        running = any([t.is_alive() for t in threads])
+        if (update.is_modified()):
+            yield update
+        sleep(0.5)
+        running = threads_running(threads)
+
+
+def threads_running(threads: list[Thread]):
+    for t in threads:
+        if (t.is_alive()):
+            return True
+    return False
