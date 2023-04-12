@@ -1,5 +1,6 @@
 from typing import Generator, Any
 from os import listdir, path, mkdir
+from threading import Thread, Event
 import cv2
 from statistics import mode
 from fractions import Fraction
@@ -97,7 +98,76 @@ def reshape(frame, shape: tuple[int, int]):
     return cv2.resize(frame, new_shape)
 
 
-def process_video(dir_path: str, video: str, video_index: int, out_dir: str, shape: tuple[int, int], fps: float, resize: bool, crop: bool) -> Generator[tuple[int, str], None, None]:
+class VideoMetadata():
+    total: int = 0
+    frame_counts: list[int] = []
+    width: int = 0
+    height: int = 0
+    fps: float = 0
+
+    def __init__(self, total: int, frame_counts: list[int], w: int, h: int, fps: float):
+        self.total = total
+        self.frame_counts = frame_counts
+        self.width = w
+        self.height = h
+        self.fps = fps
+
+
+class ProcessingUpdateMessage():
+    frames_done: list[int] = None
+    metadata: VideoMetadata = None
+    message_general: str = ''
+    messages: list[str] = None
+    elapsed_time: int = None
+
+    modified: Event = Event()
+
+    def __init__(self, total: int, metadata: VideoMetadata) -> None:
+        self.frames_done = [0 for _ in range(total)]
+        self.messages = ['' for _ in range(total)]
+        self.metadata = metadata
+
+    def set_message(self, msg: str, index: int = None) -> None:
+        if (index is None):
+            changed = self.message_general != msg
+            if changed:
+                self.modified.set()
+            self.message_general = msg
+            return
+        changed = self.messages[index] != msg
+        if changed:
+            self.modified.set()
+        self.messages[index] = msg
+
+    def set_frames(self, frame: int, index: int) -> None:
+        changed = self.frames_done[index] != frame
+        if changed:
+            self.modified.set()
+        self.frames_done[index] = frame
+
+    def message(self) -> str:
+        msg = self.message_general
+        if (msg != ''):
+            self.message_general = ''
+            return msg
+        for i in range(len(self.messages)):
+            msg = self.messages[i]
+            if (msg != ''):
+                self.messages[i] = ''
+                return msg
+        return ''
+
+    def wait(self):
+        self.modified.wait()
+        self.modified.clear()
+
+    def done(self):
+        self.modified.set()
+
+
+def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
+                  shape: tuple[int, int], fps: float, resize: bool, crop: bool,
+                  update: ProcessingUpdateMessage) -> None:
     # open video file
     video_path = f'{dir_path}/{video}'
     cap = cv2.VideoCapture(video_path)
@@ -112,7 +182,8 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
     ar_shape = shape[0] / shape[1]
     ar_fract = Fraction(shape[0], shape[1])
     if (resize and (ar != ar_shape)):
-        yield (0, f'Video {video} will be resized to fit aspect ratio {ar_fract.numerator}:{ar_fract.denominator}')
+        update.set_message(
+            f'Video {video} will be resized to fit aspect ratio {ar_fract.numerator}:{ar_fract.denominator}', video_index)
 
     # open writer for output video
     video_name = '.'.join(video.split('.')[:-1])
@@ -133,8 +204,7 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
 
         # compute how much is done
         cnt += 1
-        xx = int(cnt * 100 / frames)
-        yield (cnt, '')
+        update.set_frames(cnt, video_index)
 
         # resize when needed
         if (resize):
@@ -149,15 +219,18 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str, sha
     # release resources
     cap.release()
     writer.release()
+    update.done()
 
 
-def find_metadata(srcs_dir: str, crop: bool) -> tuple[Any, str]:
+def find_metadata(srcs_dir: str, crop: bool) -> tuple[VideoMetadata, str]:
     dir = listdir(srcs_dir)
     supported = list(filter(isSupported, dir))
 
     unsupported = list(filter(lambda x: not isSupported(x), dir))
     unsupported_files = ', '.join(unsupported)
-    msg = f'The following files are not supported and will be ignored:\n{unsupported_files}'
+    msg = ''
+    if (len(unsupported) > 0):
+        msg = f'The following files are not supported and will be ignored:\n{unsupported_files}'
 
     # get total number of supported videos in srcs_dir
     total = len(supported)
@@ -192,16 +265,14 @@ def find_metadata(srcs_dir: str, crop: bool) -> tuple[Any, str]:
     shape = transformShape(max_shape, target_ar)
 
     # send initial metadata
-    metadata = {
-        'total': total if crop else int(total / 6),
-        'frame_counts': frame_counts,
-        'shape': shape if crop else [3 * shape[0], 2 * shape[1]],
-        'fps': min_fps
-    }
+    t = total if crop else int(total / 6)
+    w = shape[0] if crop else 3 * shape[0]
+    h = shape[1] if crop else 2 * shape[1]
+    metadata = VideoMetadata(t, frame_counts, w, h, min_fps)
     return (metadata, msg)
 
 
-def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[int, int, Any, str], None, None]:
+def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[ProcessingUpdateMessage, None, None]:
     # filter out unsopported file formats
     dir = listdir(srcs_dir)
     videos = list(filter(isSupported, dir))
@@ -211,28 +282,45 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[tuple[i
 
     # send out initial metadata
     metadata, msg = find_metadata(srcs_dir, crop)
-    yield (0, total, metadata, msg)
+    update = ProcessingUpdateMessage(total, metadata)
+    update.set_message(msg)
+
+    yield update
 
     # begin processing
     if (not resize and not crop):
-        yield (100, total, None, '')
+        yield update
         return
 
     # if an out_dir already exists, assume we are done and stop processing
     # TODO: how we check if processing is done
     out_dir = f'{srcs_dir}/.out'
     if path.exists(out_dir):
-        yield (100, total, None, '')
+        update.set_message('Videos have already been processed')
+        yield update
         return
 
     # make output directory
     mkdir(out_dir)
 
     # process each video
-    # TODO: paralel processing -> maybe 1 thread per video ?
-    count = 0
+    shape = (metadata.width, metadata.height)
+    threads: list[Thread] = []
     for i in range(total):
-        for (frame, msg) in process_video(srcs_dir, videos[i], i, out_dir, metadata['shape'], metadata['fps'], resize, crop):
-            yield (frame, count, None, msg)
-        count += 1
-        yield (frame, count, None, msg)
+        t = Thread(target=process_video, args=[
+            srcs_dir, videos[i], i, out_dir, shape, metadata.fps, resize, crop, update])
+        t.start()
+        threads.append(t)
+
+    running = True
+    while (running):
+        update.wait()
+        yield update
+        running = threads_running(threads)
+
+
+def threads_running(threads: list[Thread]):
+    for t in threads:
+        if (t.is_alive()):
+            return True
+    return False
