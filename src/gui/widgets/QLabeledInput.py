@@ -97,14 +97,15 @@ class QLabeledIntInput(QLabeledInput[int]):
 class QLabeledFloatInput(QLabeledInput[float]):
     def __init__(self, midi: Midi, title: str, min: float, max: float, default_value: float, callback: Callable[[float], None], extra_buttons: bool = False):
         super().__init__(midi, title, min, max, default_value, callback, extra_buttons)
-        validator = QDoubleValidator()
-        validator.setDecimals(3)
+        validator = QDoubleValidator(min, max, 3)
+        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
         self._input.setValidator(validator)
         self._increment = 0.5
 
     def _convert_value(self, value: str) -> float | None:
+        v = value.replace(',', '.')
         try:
-            return float(value)
+            return float(v)
         except ValueError:
             return None
 
@@ -112,3 +113,9 @@ class QLabeledFloatInput(QLabeledInput[float]):
         delta = self._max_value - self._min_value
         v = float(self._min_value + delta*(value / 127.0))
         self.setText('%.3f' % v)
+
+    def setText(self, text: str):
+        v = self._convert_value(text)
+        if (v is None):
+            return
+        return super().setText(f'{v:.3f}')
