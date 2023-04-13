@@ -1,8 +1,7 @@
-dearpygui==1.7.1
 PyQt6==6.4.0
 vidgear==0.2.6
+numpy==1.23.1
 ffpyplayer==4.3.5
 python-rtmidi==1.4.9
 opencv-python==4.6.0.66
-numpy==1.23.1
 keyboard==0.13.5
