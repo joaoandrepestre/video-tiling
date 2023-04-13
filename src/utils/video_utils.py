@@ -66,6 +66,9 @@ class VideoWriter:
 
 
 def crop_frame(frame) -> list:
+    """Crops frame into 6 quadrants
+    Takes a frame and returns a list of 6 frames"""
+
     h_frame, w_frame, _ = frame.shape
     h, w = int(h_frame / 2) - 1, int(w_frame / 3) - 1
     sections = []
@@ -76,6 +79,10 @@ def crop_frame(frame) -> list:
 
 
 def transformShape(shape: tuple[int, int], ar: float):
+    """Takes a (width, height) shape and a desired aspect ratio
+    and returns a new shape, as close as possible to the original one
+    but respecting the new aspect ratio"""
+
     w, h = shape
     old_ar = w / h
 
@@ -88,6 +95,9 @@ def transformShape(shape: tuple[int, int], ar: float):
 
 
 def reshape(frame, shape: tuple[int, int]):
+    """Returns a new frame, resized to fit the aspect ratio
+    of the given shape"""
+
     h_frame, w_frame, _ = frame.shape
     w_shape, h_shape = shape
 
@@ -96,6 +106,16 @@ def reshape(frame, shape: tuple[int, int]):
     new_shape = transformShape((w_frame, h_frame), AR_shape)
 
     return cv2.resize(frame, new_shape)
+
+def findNumberOfFrames(frame: int, fps: float, new_fps: float) -> int:
+    """Returns the number of times the frame should be written to fit the new fps"""
+
+    ratio = fps / new_fps
+    if (ratio > 1):
+        return int(frame % round(ratio) == 0)
+    return round(1 / ratio)
+    
+    
 
 
 class VideoMetadata():
@@ -168,7 +188,8 @@ class ProcessingUpdateMessage():
 
 
 def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
-                  shape: tuple[int, int], fps: float, resize: bool, crop: bool,
+                  shape: tuple[int, int], fps: float, 
+                  resize: bool, crop: bool, adjust_fps: bool,
                   update: ProcessingUpdateMessage) -> None:
     # open video file
     video_path = f'{dir_path}/{video}'
@@ -192,7 +213,7 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
     writer = VideoWriter(
         out_dir,
         f'{video_index}' if crop else video_name,
-        w_fps,
+        fps,
         crop
     )
 
@@ -204,10 +225,6 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
         if ret == False:
             break
 
-        # compute how much is done
-        cnt += 1
-        update.set_frames(cnt, video_index)
-
         # resize when needed
         if (resize):
             frame = reshape(frame, shape)
@@ -216,7 +233,16 @@ def process_video(dir_path: str, video: str, video_index: int, out_dir: str,
         if (crop):
             frame = crop_frame(frame)
 
-        writer.write(frame)
+        n = 1
+        if (adjust_fps):
+            n = findNumberOfFrames(cnt, w_fps, fps)
+
+        for _ in range(n):
+            writer.write(frame)
+
+        # compute how much is done
+        cnt += 1
+        update.set_frames(cnt, video_index)
 
     # release resources
     cap.release()
@@ -274,7 +300,7 @@ def find_metadata(srcs_dir: str, crop: bool) -> tuple[VideoMetadata, str]:
     return (metadata, msg)
 
 
-def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[ProcessingUpdateMessage, None, None]:
+def process_videos(srcs_dir: str, resize: bool, crop: bool, adjust_fps: bool) -> Generator[ProcessingUpdateMessage, None, None]:
     # filter out unsopported file formats
     dir = listdir(srcs_dir)
     videos = list(filter(isSupported, dir))
@@ -290,7 +316,8 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[Process
     yield update
 
     # begin processing
-    if (not resize and not crop):
+    skip = not resize and not crop and not adjust_fps
+    if (skip or total == 0):
         yield update
         return
 
@@ -310,7 +337,7 @@ def process_videos(srcs_dir: str, resize: bool, crop: bool) -> Generator[Process
     threads: list[Thread] = []
     for i in range(total):
         t = Thread(target=process_video, args=[
-            srcs_dir, videos[i], i, out_dir, shape, metadata.fps, resize, crop, update])
+            srcs_dir, videos[i], i, out_dir, shape, metadata.fps, resize, crop, adjust_fps, update])
         t.start()
         threads.append(t)
 
