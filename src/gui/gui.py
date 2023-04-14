@@ -14,6 +14,7 @@ from gui.widgets.QStatusDisplay import QStatusDisplay
 from gui.widgets.QTupleInput import QTupleInput
 from gui.widgets.QCollapsableSection import QCollapsableSection
 from gui.widgets.QMultiProgress import QMultiProgress
+from gui.widgets.QFileSelector import QFileSelector
 from midi.midi import Midi, MidiMessageType
 from tiles import tile as T
 from config.config import (
@@ -91,10 +92,8 @@ class Window(QWidget):
         hbox.addWidget(crop_checkbox)
         hbox.addWidget(fps_checkbox)
         video_vbox.addLayout(hbox)
-
-        self.sources_button = self.make_button(
-            f'Select sources: {get_config(PATH_CONFIG)}', self.__file_callback)
-        video_vbox.addWidget(self.sources_button)
+    
+        video_vbox.addWidget(QFileSelector(self.__file_callback, get_config(PATH_CONFIG)))
 
         self.__progress_win = None
         self.__progress = QMultiProgress(self, 0,
@@ -215,13 +214,8 @@ class Window(QWidget):
         status = self.__midi.is_device_connected()
         self.__midi_status.setStatus(status)
 
-    def __file_callback(self) -> None:
-        dir: str = QFileDialog.getExistingDirectory(
-            self, 'Select scenes directory...', get_config(PATH_CONFIG))
-        if (dir == ''):
-            return
+    def __file_callback(self, dir: str) -> None:
         set_config(PATH_CONFIG, dir)
-        self.sources_button.setText(f'Select sources: {dir}')
         self.launchProgressDialog(dir)
 
     def launchAlert(self, msg: str):
